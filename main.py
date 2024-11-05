@@ -169,7 +169,7 @@ async def button_handler(_, callback_query: CallbackQuery):
 
     # Use `edit_media` to update the photo in the message
     await callback_query.message.edit_media(
-        media={"type": "photo", "media": output_path}, 
+        media={"type": "photo", "media": output_path, "caption": ""},  # Add an empty caption
         reply_markup=callback_query.message.reply_markup  # Keep the same buttons
     )
 
