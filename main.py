@@ -27,19 +27,19 @@ def enhance_image(input_image_path, output_image_path):
         # Open image using Pillow
         img = Image.open(input_image_path)
 
-        # 1. Adjust Contrast and Brightness
+        # 1. Adjust Contrast and Brightness (Use moderate values)
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.5)  # Increase contrast slightly
+        img = enhancer.enhance(1.2)  # Slight contrast enhancement
 
         enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.2)  # Increase brightness slightly
+        img = enhancer.enhance(1.1)  # Slight brightness enhancement
 
-        # 2. Enhance Sharpness
+        # 2. Enhance Sharpness (Moderate sharpness increase)
         enhancer = ImageEnhance.Sharpness(img)
-        img = enhancer.enhance(2.0)  # Increase sharpness significantly
+        img = enhancer.enhance(1.5)  # Moderate sharpness enhancement
 
-        # 3. Apply Gaussian Blur for smoother look
-        img = img.filter(ImageFilter.GaussianBlur(radius=1))
+        # 3. Apply Gaussian Blur (for smoothness)
+        img = img.filter(ImageFilter.GaussianBlur(radius=0.5))  # Lighter blur to avoid over-smoothing
 
         # Save the image
         img.save(output_image_path)
@@ -56,16 +56,16 @@ def apply_opencv_enhancements(image_path):
     image = cv2.imread(image_path)
 
     # 1. Denoising (reduce noise)
-    denoised_image = cv2.fastNlMeansDenoisingColored(image, None, 10, 10, 7, 21)
+    denoised_image = cv2.fastNlMeansDenoisingColored(image, None, 15, 15, 7, 21)  # Moderate denoising
 
-    # 2. Contrast Stretching (Auto-adjust contrast)
+    # 2. Contrast Stretching (Auto-adjust contrast, not too much)
     lab = cv2.cvtColor(denoised_image, cv2.COLOR_BGR2Lab)
     l, a, b = cv2.split(lab)
     l = cv2.equalizeHist(l)  # Apply histogram equalization to the L channel (luminance)
     lab = cv2.merge((l, a, b))
     contrast_stretched_image = cv2.cvtColor(lab, cv2.COLOR_Lab2BGR)
 
-    # 3. Edge Sharpening (Using kernel)
+    # 3. Edge Sharpening (Moderate sharpening)
     kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])  # Sharpening kernel
     sharpened_image = cv2.filter2D(contrast_stretched_image, -1, kernel)
 
