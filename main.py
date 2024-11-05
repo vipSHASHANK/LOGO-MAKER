@@ -1,11 +1,9 @@
 import logging
 import random
-import pyfiglet
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from config import Config
-import art  # Using the 'art' library to generate text art
-from unidecode import unidecode
+import pyfiglet  # Pyfiglet for stylish text generation
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -13,34 +11,27 @@ logger = logging.getLogger(__name__)
 
 # Stylish Symbols List (special characters and Unicode symbols)
 stylish_symbols = [
-    "❤", "❀", "✰", "☪", "☽", "☁", "⭐", "✿", "☘", "❖", "✧", "☠", "⚡", "✪", "⚔", "✪", "❣", "➸", "✦"
+    "❤", "❀", "✰", "☪", "☽", "☁", "⭐", "✿", "☘", "❖", "✧", "☠", "⚡", "✪", "⚔", "❣", "➸", "✦"
 ]
 
-# Function to convert text to stylish versions using `pyfiglet` and `art` library
+# Function to convert text to stylish versions using `pyfiglet`
 def convert_to_stylish_text(input_text):
     """Text ko stylish formats mein convert kare."""
     
     # Check if the input text contains any invalid characters (non-alphabetic)
-    if not input_text.isalpha() and not input_text.replace(" ", "").isalnum():
+    if not input_text.replace(" ", "").isalnum():
         return "Kripya sirf text daalein, special characters nahi."
 
     stylish_versions = []
 
-    # 1. Use pyfiglet for ASCII-style fonts with simpler and smaller fonts
+    # 1. Use pyfiglet for ASCII-style fonts (smaller and readable)
     try:
-        figlet_version = pyfiglet.figlet_format(input_text, font="small")  # Use a simpler and smaller font like "small"
+        figlet_version = pyfiglet.figlet_format(input_text, font="slant")  # Use a simple and compact font
         stylish_versions.append(figlet_version)
     except Exception as e:
         logger.error(f"Error in pyfiglet: {e}")
 
-    # 2. Use art library for Unicode fonts (simpler and more compact)
-    try:
-        art_version = art.text2art(input_text, font='block')  # 'block' font is simple, avoid overly complex fonts
-        stylish_versions.append(art_version)
-    except Exception as e:
-        logger.error(f"Error in art.text2art: {e}")
-
-    # 3. Add random stylish symbols around the text
+    # 2. Add random stylish symbols around the text
     symbol = random.choice(stylish_symbols)
     stylish_versions_with_symbols = [f"{symbol} {version} {symbol}" for version in stylish_versions]
 
