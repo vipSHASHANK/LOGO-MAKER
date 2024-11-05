@@ -5,17 +5,11 @@ from pyrogram import Client, filters
 from pyrogram.errors import Unauthorized, SessionRevoked
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
-from motor.motor_asyncio import AsyncIOMotorClient
 from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# MongoDB Client Setup
-mongo_client = AsyncIOMotorClient(Config.MONGO_URI)
-db = mongo_client[Config.MONGO_DB_NAME]
-users_collection = db["users"]  # MongoDB collection for user data
 
 # Pyrogram Bot Setup
 app = Client(
@@ -97,126 +91,119 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Function to get user data from MongoDB
-async def get_user_data(user_id):
-    user = await users_collection.find_one({"user_id": user_id})
-    if user:
-        return user
-    else:
-        return None
-
-# Function to save/update user data in MongoDB
-async def save_user_data(user_id, data):
-    await users_collection.update_one(
-        {"user_id": user_id},
-        {"$set": data},
-        upsert=True
-    )
-
 # Handler for when a user sends a photo
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message):
-    try:
-        if message.photo:
-            photo_path = f"user_photos/{message.photo.file_id}.jpg"
-            await message.download(photo_path)
-
-            # Save user data in MongoDB
-            await save_user_data(message.from_user.id, {'photo_path': photo_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
-
-            await message.reply_text("Ab apna logo text bheje.")
-    except SessionRevoked as e:
-        logger.error(f"Session revoked error: {str(e)}. Attempting to restart the bot.")
-        # Restart the bot if the session is revoked
-        await app.stop()
-        await app.start()
-        logger.info("Bot session restarted successfully.")
-    except Exception as e:
-        logger.error(f"Error in photo handler: {e}")
-        await message.reply_text("An error occurred while processing your request.")
+    if message.photo:
+        photo_path = f"user_photos/{message.photo.file_id}.jpg"
+        await message.download(photo_path)
+        
+        await message.reply_text("Ab apna logo text bheje.")
 
 # Handler for receiving logo text after photo
 @app.on_message(filters.text & filters.private)
 async def text_handler(_, message: Message):
-    try:
-        user_id = message.from_user.id
-        user_data = await get_user_data(user_id)
+    user_text = message.text.strip()
 
-        if not user_data:
-            await message.reply_text("Pehle apna photo bheje.")
-            return
+    if not user_text:
+        await message.reply_text("Logo text dena hoga.")
+        return
 
-        user_text = message.text.strip()
-
-        if not user_text:
-            await message.reply_text("Logo text dena hoga.")
-            return
-
-        # Save the text into the user's data
-        user_data['text'] = user_text
-        await save_user_data(user_id, user_data)
-
-        # Send font selection buttons
-        font_buttons = create_font_buttons()
-        await message.reply_text(
-            "Apna font choose karein:", 
-            reply_markup=InlineKeyboardMarkup([font_buttons])
-        )
-    except SessionRevoked as e:
-        logger.error(f"Session revoked error: {str(e)}. Attempting to restart the bot.")
-        # Restart the bot if the session is revoked
-        await app.stop()
-        await app.start()
-        logger.info("Bot session restarted successfully.")
-    except Exception as e:
-        logger.error(f"Error in text handler: {e}")
-        await message.reply_text("An error occurred while processing your request.")
+    # Save the text into the user's data
+    photo_path = f"user_photos/{message.photo.file_id}.jpg"
+    
+    # Send font selection buttons
+    font_buttons = create_font_buttons()
+    await message.reply_text(
+        "Apna font choose karein:", 
+        reply_markup=InlineKeyboardMarkup([font_buttons])
+    )
 
 # Handler for font selection
 @app.on_callback_query(filters.regex("^font_"))
 async def font_button_handler(_, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    selected_font_name = callback_query.data.split("_")[1]
+    selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
+
+    if selected_font:
+        font_path = selected_font['path']
+        
+        photo_path = "user_photos/some_photo.jpg"  # Replace with the actual user photo path
+        user_text = "Sample Text"  # Replace with the actual user text input
+        output_path = f"logos/updated_{user_text}_logo.png"
+        
+        result = await add_text_to_image(photo_path, user_text, output_path, font_path=font_path)
+
+        if result:
+            await callback_query.message.edit_text(
+                "Font selected! Ab apni logo ka position, size aur glow color change karein.",
+                reply_markup=InlineKeyboardMarkup([
+                    *POSITION_SIZE_BUTTONS,
+                    *GLOW_COLOR_BUTTONS
+                ])
+            )
+            media = InputMediaPhoto(media=output_path, caption="")
+            await callback_query.message.edit_media(media=media)
+            await callback_query.answer(f"Font changed to {selected_font_name}")
+
+# Handler for position adjustments, size changes, and glow color changes
+@app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
+async def button_handler(_, callback_query: CallbackQuery):
+    action = callback_query.data
+    x_offset, y_offset = (0, 0)  # Default position, replace with actual position logic
+    size_multiplier = 1  # Default size multiplier
+    text = "Sample Text"  # Replace with the actual user text input
+    glow_color = "red"  # Default glow color
+    font_path = "fonts/FIGHTBACK.ttf"  # Default font path
+
+    # Adjust position, size, and glow color based on action
+    if action == "left":
+        x_offset -= 10
+    elif action == "right":
+        x_offset += 10
+    elif action == "up":
+        y_offset -= 10
+    elif action == "down":
+        y_offset += 10
+    elif action == "smaller":
+        size_multiplier = max(0.5, size_multiplier - 0.1)
+    elif action == "bigger":
+        size_multiplier = min(2, size_multiplier + 0.1)
+    elif action == "glow_red":
+        glow_color = "red"
+    elif action == "glow_green":
+        glow_color = "green"
+    elif action == "glow_blue":
+        glow_color = "blue"
+
+    # Regenerate the logo with updated settings
+    output_path = f"logos/updated_{text}_logo.png"
+
+    result = await add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, glow_color, font_path)
+
+    if result:
+        media = InputMediaPhoto(media=output_path, caption="")
+        await callback_query.message.edit_media(media=media)
+        await callback_query.answer(f"Logo updated with {action}")
+
+# Start command handler
+@app.on_message(filters.command("start") & filters.private)
+async def start(_, message: Message):
+    await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
+
+# Handle Unauthorized errors (Session Revoked)
+@app.on_error
+async def handle_unauthorized_error(_, e):
+    logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked or the session expired.")
+    # Reset the session to allow the bot to re-authorize
     try:
-        user_id = callback_query.from_user.id
-        user_data = await get_user_data(user_id)
-
-        if not user_data:
-            return
-
-        selected_font_name = callback_query.data.split("_")[1]
-        selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
-
-        if selected_font:
-            user_data['selected_font'] = selected_font['path']
-            font_path = selected_font['path']
-            
-            photo_path = user_data['photo_path']
-            user_text = user_data['text']
-            output_path = f"logos/updated_{user_text}_logo.png"
-            
-            result = await add_text_to_image(photo_path, user_text, output_path, font_path=font_path)
-
-            if result:
-                await callback_query.message.edit_text(
-                    "Font selected! Ab apni logo ka position, size aur glow color change karein.",
-                    reply_markup=InlineKeyboardMarkup([
-                        *POSITION_SIZE_BUTTONS,
-                        *GLOW_COLOR_BUTTONS
-                    ])
-                )
-                media = InputMediaPhoto(media=output_path, caption="")
-                await callback_query.message.edit_media(media=media)
-                await callback_query.answer(f"Font changed to {selected_font_name}")
-    except SessionRevoked as e:
-        logger.error(f"Session revoked error: {str(e)}. Attempting to restart the bot.")
-        # Restart the bot if the session is revoked
         await app.stop()
         await app.start()
         logger.info("Bot session restarted successfully.")
-    except Exception as e:
-        logger.error(f"Error in font button handler: {e}")
-        await callback_query.answer("An error occurred while processing your request.")
+    except Exception as ex:
+        logger.error(f"Failed to restart bot: {str(ex)}")
 
-# Start the bot
 if __name__ == "__main__":
     app.run()
     
