@@ -247,7 +247,7 @@ async def start(_, message: Message):
     await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
 
 # Handle Unauthorized errors (Session Revoked)
-@app.on_error(Unauthorized)
+@app.add_error_handler(Unauthorized)
 async def handle_unauthorized_error(_, e):
     logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked or the session expired.")
     # Reset the session to allow the bot to re-authorize
