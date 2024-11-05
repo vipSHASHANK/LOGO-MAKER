@@ -2,7 +2,7 @@ import logging
 import random
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import Message, CallbackQuery
+from pyrogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.handlers import CallbackQueryHandler
 from private_buttons import get_position_buttons  # Importing buttons
 from config import Config  # Ensure you have your correct bot token and API credentials
@@ -182,4 +182,4 @@ if __name__ == "__main__":
         app.run()
     except Exception as e:
         logger.error(f"Error starting the bot: {e}")
-        
+    
