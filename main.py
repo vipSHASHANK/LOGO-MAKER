@@ -100,63 +100,25 @@ async def restart_bot():
         logger.info("Bot stopped. Restarting the bot.")
         time.sleep(2)  # Giving some time before reinitializing
         app = create_app()  # Reinitialize the bot client
-        app.run()  # Start the bot again
+        await app.start()  # Start the bot again
+        logger.info("Bot restarted successfully.")
     except Exception as e:
         logger.error(f"Error during bot restart: {e}")
 
-# Handler for position adjustments, size changes, and glow color changes
-@app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
-async def button_handler(_, callback_query: CallbackQuery):
-    action = callback_query.data
-    x_offset, y_offset = (0, 0)  # Default position, replace with actual position logic
-    size_multiplier = 1  # Default size multiplier
-    text = "Sample Text"  # Replace with the actual user text input
-    glow_color = "red"  # Default glow color
-    font_path = "fonts/FIGHTBACK.ttf"  # Default font path
+# Initialize the bot and run it
+async def main():
+    try:
+        app = create_app()  # Initialize the app
+        await app.start()
+    except SessionRevoked as e:
+        logger.error(f"Session revoked: {str(e)}. The session has been invalidated.")
+        # Restart the bot if session is revoked
+        await restart_bot()  # This will reinitialize and restart the bot
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {str(e)}")
 
-    # Adjust position, size, and glow color based on action
-    if action == "left":
-        x_offset -= 10
-    elif action == "right":
-        x_offset += 10
-    elif action == "up":
-        y_offset -= 10
-    elif action == "down":
-        y_offset += 10
-    elif action == "smaller":
-        size_multiplier = max(0.5, size_multiplier - 0.1)
-    elif action == "bigger":
-        size_multiplier = min(2, size_multiplier + 0.1)
-    elif action == "glow_red":
-        glow_color = "red"
-    elif action == "glow_green":
-        glow_color = "green"
-    elif action == "glow_blue":
-        glow_color = "blue"
-
-    # Regenerate the logo with updated settings
-    output_path = f"logos/updated_{text}_logo.png"
-
-    result = await add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, glow_color, font_path)
-
-    if result:
-        media = InputMediaPhoto(media=output_path, caption="")
-        await callback_query.message.edit_media(media=media)
-        await callback_query.answer(f"Logo updated with {action}")
-
-# Start command handler
-@app.on_message(filters.command("start") & filters.private)
-async def start(_, message: Message):
-    await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
-
-# Global error handling using try-except for the main part
-try:
-    app = create_app()  # Initialize the app
-    app.run()
-except SessionRevoked as e:
-    logger.error(f"Session revoked: {str(e)}. The session has been invalidated.")
-    # Restart the bot if session is revoked
-    await restart_bot()  # This will reinitialize and restart the bot
-except Exception as e:
-    logger.error(f"An unexpected error occurred: {str(e)}")
-    
+# Start the bot
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+        
