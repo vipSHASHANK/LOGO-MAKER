@@ -51,59 +51,6 @@ def create_client():
         logger.error(f"Error creating client: {e}")
         return None
 
-# Start command handler
-@app.on_message(filters.command("start"))
-async def start_command(_, message: Message) -> None:
-    """Welcomes the user with instructions."""
-    welcome_text = (
-        "👋 Welcome to the Image Enhancer Bot!\n\n"
-        "Send me a photo, and I will enhance it for you!"
-    )
-
-    keyboard = [
-        [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
-
-# Photo handler (processing photo)
-@app.on_message(filters.photo & filters.incoming & filters.private)
-async def photo_handler(_, message: Message) -> None:
-    """Handles incoming photo messages by enhancing them."""
-    media = message
-    file_size = media.photo.file_size if media.photo else 0
-
-    if file_size > 200 * 1024 * 1024:
-        return await message.reply_text("Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴘʜᴏᴛᴏ ᴜɴᴅᴇʀ 200MB.")
-
-    try:
-        text = await message.reply("Processing...")
-
-        # Download the image
-        local_path = await media.download()
-
-        # Enhance the image using PixelCut API
-        enhanced_image = enhance_image_with_pixelcut(local_path)
-
-        if enhanced_image:
-            await text.edit_text("Enhancement completed, sending back...")
-
-            # Send the enhanced image back to the user
-            await message.reply_photo(enhanced_image)
-        else:
-            await text.edit_text("❍ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ᴇɴʜᴀɴᴄɪɴɢ.")
-
-        # Clean up the original and enhanced files after processing
-        os.remove(local_path)
-        os.remove(enhanced_image)
-
-    except Exception as e:
-        logger.error(e)
-        await text.edit_text("File enhancement failed.")
-        if os.path.exists(local_path):
-            os.remove(local_path)  # Clean up if download fails
-
 # Function to handle session revocation errors and recreate session
 def handle_session_revocation(app):
     try:
@@ -118,6 +65,59 @@ def handle_session_revocation(app):
 if __name__ == "__main__":
     app = create_client()
     if app:
+        # Define handlers after the app is created
+        @app.on_message(filters.command("start"))
+        async def start_command(_, message: Message) -> None:
+            """Welcomes the user with instructions."""
+            welcome_text = (
+                "👋 Welcome to the Image Enhancer Bot!\n\n"
+                "Send me a photo, and I will enhance it for you!"
+            )
+
+            keyboard = [
+                [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
+
+        # Photo handler (processing photo)
+        @app.on_message(filters.photo & filters.incoming & filters.private)
+        async def photo_handler(_, message: Message) -> None:
+            """Handles incoming photo messages by enhancing them."""
+            media = message
+            file_size = media.photo.file_size if media.photo else 0
+
+            if file_size > 200 * 1024 * 1024:
+                return await message.reply_text("Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴘʜᴏᴛᴏ ᴜɴᴅᴇʀ 200MB.")
+
+            try:
+                text = await message.reply("Processing...")
+
+                # Download the image
+                local_path = await media.download()
+
+                # Enhance the image using PixelCut API
+                enhanced_image = enhance_image_with_pixelcut(local_path)
+
+                if enhanced_image:
+                    await text.edit_text("Enhancement completed, sending back...")
+
+                    # Send the enhanced image back to the user
+                    await message.reply_photo(enhanced_image)
+                else:
+                    await text.edit_text("❍ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ᴇɴʜᴀɴᴄɪɴɢ.")
+
+                # Clean up the original and enhanced files after processing
+                os.remove(local_path)
+                os.remove(enhanced_image)
+
+            except Exception as e:
+                logger.error(e)
+                await text.edit_text("File enhancement failed.")
+                if os.path.exists(local_path):
+                    os.remove(local_path)  # Clean up if download fails
+
         handle_session_revocation(app)  # Run the bot, handle session revocation errors
     else:
         logger.error("Failed to create the client.")
