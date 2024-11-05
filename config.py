@@ -15,4 +15,6 @@ class Config:
     API_ID = int(getenv("API_ID", "16457832"))
     API_HASH = getenv("API_HASH", "3030874d0befdb5d05597deacc3e83ab")
     BOT_TOKEN = getenv("BOT_TOKEN", "7893206132:AAGOiIySV3xQ3TIyIqYcwCnwoXRRGcjXiPg")
+    MONGO_URI = getenv("MONGO_URI", "mongodb+srv://TEAMBABY01:UTTAMRATHORE09@cluster0.vmjl9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+    MONGO_DB_NAME = getenv("MONGO_DB_NAME", "logo_creator_bot")
     
