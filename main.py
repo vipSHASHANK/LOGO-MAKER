@@ -2,18 +2,14 @@ import logging
 import random
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from pyrogram.types import Message, CallbackQuery
 from pyrogram.handlers import CallbackQueryHandler
-from config import Config  # Make sure this imports your configuration file correctly
+from private_buttons import get_position_buttons  # Importing buttons
+from config import Config  # Ensure you have your correct bot token and API credentials
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)  # Use DEBUG for detailed logs
 logger = logging.getLogger(__name__)
-
-# List of available fonts (TTF fonts)
-fonts = [
-    "fonts/FIGHTBACK.ttf"  # Make sure this path is correct for your font file
-]
 
 # Dictionary to store user data
 user_data = {}
@@ -38,7 +34,7 @@ def get_dynamic_font(image, text, max_width, max_height):
     # Try different font sizes
     font_size = 100
     while font_size > 10:
-        font = ImageFont.truetype(random.choice(fonts), font_size)
+        font = ImageFont.truetype(random.choice(["fonts/FIGHTBACK.ttf"]), font_size)
         text_width, text_height = draw.textsize(text, font=font)
         
         # If the text fits within the available space, break the loop
@@ -117,14 +113,7 @@ async def text_handler(_, message: Message):
 
         if result:
             # Send the initial logo image to the user with buttons for position adjustments
-            buttons = [
-                [InlineKeyboardButton("Left", callback_data="left"),
-                 InlineKeyboardButton("Right", callback_data="right")],
-                [InlineKeyboardButton("Up", callback_data="up"),
-                 InlineKeyboardButton("Down", callback_data="down")],
-                [InlineKeyboardButton("Smaller", callback_data="smaller"),
-                 InlineKeyboardButton("Bigger", callback_data="bigger")]
-            ]
+            buttons = get_position_buttons()  # Get position buttons from the private_buttons file
             await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
 
             # Store the current state of the image and user adjustments
