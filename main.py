@@ -26,16 +26,16 @@ def convert_to_stylish_text(input_text):
 
     stylish_versions = []
 
-    # 1. Use pyfiglet for ASCII-style fonts
+    # 1. Use pyfiglet for ASCII-style fonts with smaller fonts
     try:
-        figlet_version = pyfiglet.figlet_format(input_text, font="slant")  # slant font for ASCII art
+        figlet_version = pyfiglet.figlet_format(input_text, font="mini")  # Use a smaller font like "mini"
         stylish_versions.append(figlet_version)
     except Exception as e:
         logger.error(f"Error in pyfiglet: {e}")
 
-    # 2. Use art library for Unicode fonts
+    # 2. Use art library for Unicode fonts (smaller sizes)
     try:
-        art_version = art.text2art(input_text)  # Converts to Unicode fancy font using 'art'
+        art_version = art.text2art(input_text, font='block')  # 'block' is a compact font in art library
         stylish_versions.append(art_version)
     except Exception as e:
         logger.error(f"Error in art.text2art: {e}")
