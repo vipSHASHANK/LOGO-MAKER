@@ -1,17 +1,15 @@
 import os
 import logging
-import requests
+import cv2
+import numpy as np
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from PIL import Image, ImageEnhance, ImageFilter
 from config import Config  # Ensure you have this file for your bot's config
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Picsart API Key and URL
-PICSART_API_KEY = 'eyJraWQiOiI5NzIxYmUzNi1iMjcwLTQ5ZDUtOTc1Ni05ZDU5N2M4NmIwNTEiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhdXRoLXNlcnZpY2UtYmI1YTEzNDYtOWQ0MC00NmI4LWJlMGMtOWQ4ZDFiZmZiMDAxIiwiYXVkIjoiNDY3MzgxMTczMDA4MTAxIiwibmJmIjoxNzMwNzkzMDE0LCJzY29wZSI6WyJiMmItYXBpLmdlbl9haSIsImIyYi1hcGkuaW1hZ2VfYXBpIl0sImlzcyI6Imh0dHBzOi8vYXBpLnBpY3NhcnQuY29tL3Rva2VuLXNlcnZpY2UiLCJvd25lcklkIjoiNDY3MzgxMTczMDA4MTAxIiwiaWF0IjoxNzMwNzkzMDE0LCJqdGkiOiJhNjM3Yzk3ZS02Zjk4LTQwMmUtOGE2Zi0xYWM1NzBhYmRkN2MifQ.NA4CgiP0K7UFUDMgL88MKklsrBjQhPp-6YsXEkcdhOORivSdwHDSXrBfX_Iy6jh-_vbuL19d0uCuhSWRgFKls81C4b2UOm4S9ESkxZqcS52xvID9dVDDvmuIYCAepKDG8tsEYXpEfqbo9RgwOv1J0dr6sjv_A90PoFi2IOIhU2oyrmHwwTw33nRatAEh6Gq9UxR05i6WGef670_z1QuIMcRf0RI3_0DDtq8UfgF5cSmDLZ1US74PdH8VFQMdojVOLFAXJYSyFxjZm77Fzolh1Bpu7A7xSS9S8Rad02Tvk1UvKJJotUXi5kPGgMJ606669a87vvYv-lWIEqwqtUPZVA'  # Replace this with your Picsart API key
-PICSART_API_URL = "https://api.picsart.io/v1/ai/image/enhance"
 
 # Set up the Telegram bot client
 app = Client(
@@ -21,37 +19,67 @@ app = Client(
     api_hash=Config.API_HASH,
 )
 
-# Function to enhance image using Picsart API
-def enhance_with_picsart(file_path):
+# Function to enhance image using Pillow (PIL) and OpenCV
+def enhance_image(input_image_path, output_image_path):
     try:
-        # Open the image file to send to Picsart API
-        with open(file_path, 'rb') as image_file:
-            files = {'image': image_file}
-            headers = {'Authorization': f'Bearer {PICSART_API_KEY}'}
+        # Open image using Pillow
+        img = Image.open(input_image_path)
 
-            # Log the request to ensure we're sending it properly
-            logger.info(f"Sending request to Picsart API with key: {PICSART_API_KEY}")
+        # 1. Contrast Enhancement
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(2.5)  # Adjust contrast
 
-            # Send POST request to the Picsart API for enhancement
-            response = requests.post(PICSART_API_URL, files=files, headers=headers)
-            
-            # Log the API response for debugging
-            logger.info(f"Response from Picsart API: {response.status_code}, {response.text}")
+        # 2. Brightness Enhancement
+        enhancer = ImageEnhance.Brightness(img)
+        img = enhancer.enhance(1.5)  # Adjust brightness
 
-            # If the API call is successful, return the enhanced image URL
-            if response.status_code == 200:
-                result = response.json()
-                enhanced_image_url = result.get('url')  # Getting the enhanced image URL
-                return enhanced_image_url
-            else:
-                logger.error(f"Error from Picsart API: {response.text}")
-                return None
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request exception: {e}")
-        return None
+        # 3. Sharpness Enhancement (using Pillow)
+        enhancer = ImageEnhance.Sharpness(img)
+        img = enhancer.enhance(2.0)  # Increase sharpness
+
+        # 4. Vibrance Adjustment (Increase color saturation)
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(2.0)  # Increase color saturation
+
+        # 5. Gaussian Blur for smooth look
+        img = img.filter(ImageFilter.GaussianBlur(radius=1))
+
+        # Save the enhanced image
+        img.save(output_image_path)
+
+        # Apply OpenCV-based denoising and edge sharpening
+        return apply_opencv_enhancements(output_image_path)
+    
     except Exception as e:
-        logger.error(f"General error: {e}")
+        logger.error(f"Error enhancing image: {str(e)}")
         return None
+
+
+def apply_opencv_enhancements(image_path):
+    """Apply OpenCV denoising, contrast stretching, and edge sharpening."""
+    # Read the image using OpenCV
+    image = cv2.imread(image_path)
+
+    # 1. Denoising (using OpenCV to reduce noise)
+    denoised_image = cv2.fastNlMeansDenoisingColored(image, None, 10, 10, 7, 21)
+
+    # 2. Contrast Stretching (Auto-adjust contrast)
+    lab = cv2.cvtColor(denoised_image, cv2.COLOR_BGR2Lab)
+    l, a, b = cv2.split(lab)
+    l = cv2.equalizeHist(l)  # Apply histogram equalization to L channel (luminance)
+    lab = cv2.merge((l, a, b))
+    contrast_stretched_image = cv2.cvtColor(lab, cv2.COLOR_Lab2BGR)
+
+    # 3. Edge Sharpening (Using a kernel)
+    kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])  # Sharpening kernel
+    sharpened_image = cv2.filter2D(contrast_stretched_image, -1, kernel)
+
+    # Save the final enhanced image
+    enhanced_image_path = "enhanced_" + os.path.basename(image_path)
+    cv2.imwrite(enhanced_image_path, sharpened_image)
+
+    return enhanced_image_path
+
 
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
@@ -65,7 +93,7 @@ async def start_command(_, message: Message) -> None:
 
 @app.on_message(filters.photo & filters.incoming & filters.private)
 async def photo_handler(_, message: Message) -> None:
-    """Handles incoming photo messages, enhances them with Picsart API, and sends back the enhanced photo."""
+    """Handles incoming photo messages, enhances them, and sends back the enhanced photo."""
     media = message
     file_size = media.photo.file_size if media.photo else 0
 
@@ -80,19 +108,22 @@ async def photo_handler(_, message: Message) -> None:
         # Download the image to local storage
         local_path = await media.download()
 
-        # Enhance the photo using Picsart API
-        enhanced_image_url = enhance_with_picsart(local_path)
+        # Define the path for the enhanced image
+        enhanced_image_path = "enhanced_" + os.path.basename(local_path)
 
-        if enhanced_image_url:
+        # Enhance the photo using Pillow and OpenCV
+        enhanced_image = enhance_image(local_path, enhanced_image_path)
+
+        if enhanced_image:
             await text.edit_text("Sending enhanced image...")
-
-            # Send the enhanced image URL back to the user
-            await message.reply_text(f"Your enhanced image: {enhanced_image_url}")
+            # Send the enhanced image back to the user
+            await message.reply_photo(enhanced_image)
         else:
             await text.edit_text("Error enhancing the image. Please try again later.")
 
-        # Clean up the original file after processing
+        # Clean up the original and enhanced files after processing
         os.remove(local_path)
+        os.remove(enhanced_image_path)
 
     except Exception as e:
         logger.error(f"Error in photo_handler: {str(e)}")
