@@ -13,12 +13,15 @@ logger = logging.getLogger(__name__)
 # In-memory user data storage (You can use a database if required)
 user_data_store = {}
 
-# Bot Setup
+# Bot Setup with MemoryStorage (to avoid SQLite locking issues)
+from pyrogram.storage import MemoryStorage
+
 app = Client(
     "logo_creator_bot",  # Unique session name
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
-    api_hash=Config.API_HASH
+    api_hash=Config.API_HASH,
+    storage=MemoryStorage(),  # Use in-memory storage to avoid SQLite issues
 )
 
 # Font options (path to your fonts)
@@ -248,4 +251,3 @@ async def start(_, message: Message):
 
 if __name__ == "__main__":
     app.run()
-    
