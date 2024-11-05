@@ -14,14 +14,16 @@ logger = logging.getLogger(__name__)
 # इन-मेमोरी यूज़र डेटा स्टोर
 user_data_store = {}
 
-# बॉट सेटअप
-storage = MemoryStorage("logo_creator_memory")  # यूनिक नाम के साथ स्टोरेज सेट करें
+# MemoryStorage का उपयोग करें, और इसको Client के साथ जोड़ें
+storage = MemoryStorage()  # यहाँ कोई नाम की आवश्यकता नहीं
 
+# बॉट सेटअप
 app = Client(
     "logo_creator_bot",  # यूनिक सत्र नाम
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
+    session_name="logo_creator_session",  # यहाँ नाम सेट करें
     storage=storage  # स्टोरेज को क्लाइंट में पास करें
 )
 
