@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config  # Ensure you have this file for your bot's config
-from private_buttons import position_buttons  # Import buttons from private_buttons.py
+from private_buttons import buttons  # Import buttons from private_buttons.py
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -20,17 +20,30 @@ app = Client(
 # Dictionary to store user data (for handling images and text)
 user_data = {}
 
-# Function to add refined glow effect to text (using selected glow color)
-def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_strength=5):
+# Function to add a 3D text effect with shadow and glow
+def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offset=(5, 5), glow_strength=5):
+    """
+    Adds a 3D text effect by creating a shadow and the main text.
+    The main text is drawn on top of the shadow with a glowing effect.
+    """
     x, y = position
-    # Draw glow around the text with limited strength for edges
-    for offset in range(1, glow_strength + 1):  # Limit glow strength
+    
+    # Shadow: Draw the shadow slightly offset from the original position
+    shadow_x = x + shadow_offset[0]
+    shadow_y = y + shadow_offset[1]
+    
+    # Draw the shadow in a darker shade
+    draw.text((shadow_x, shadow_y), text, font=font, fill="black")
+
+    # Glow effect around the main text (optional, for more depth)
+    for offset in range(1, glow_strength + 1):
         draw.text((x - offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x - offset, y + offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
-    # Draw the main text in the center with the normal color
-    draw.text(position, text, font=font, fill=text_color)
+
+    # Main text: Draw the main text on top of the shadow and glow
+    draw.text((x, y), text, font=font, fill=text_color)
 
 # Function to dynamically adjust text size based on available space
 def get_dynamic_font(image, text, max_width, max_height):
@@ -49,7 +62,7 @@ def get_dynamic_font(image, text, max_width, max_height):
 
     return font, text_width, text_height
 
-# Function to add text to an image at a specified position with glow effect
+# Function to add text to an image at a specified position with 3D effect
 def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red"):
     try:
         user_image = Image.open(photo_path)
@@ -67,7 +80,8 @@ def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, siz
         text_position = (x, y)
 
         draw = ImageDraw.Draw(user_image)
-        add_refined_glow(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
+        # Call the new function for 3D text effect
+        add_3d_text(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
 
         user_image.save(output_path, "PNG")
         return output_path
@@ -115,7 +129,7 @@ async def text_handler(_, message: Message):
 
     if result:
         # Send the initial logo image to the user with position adjustment and glow color change buttons
-        await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(position_buttons))
+        await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
 
         # Store the current state of the image and user adjustments
         user_data[user_id]['output_path'] = output_path
@@ -188,17 +202,10 @@ async def start_command(_, message: Message):
         "👋 Welcome to the Logo Creator Bot!\n\n"
         " • Upload a photo: Send a photo first.\n"
         " • Add logo text: After sending the photo, you can provide the text for the logo.\n"
-        " • Receive the logo: After text is added, you'll get your custom logo.\n"
+        " • Receive the logo: After text is added, adjust the position, size, and glow color using buttons.\n"
+        " • Enjoy creating your logos!"
     )
+    await message.reply_text(welcome_text)
 
-    keyboard = [
-        [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
-
-# Main entry point to run the bot
-if __name__ == "__main__":
-    app.run()
-    
+# Run the bot
+app.run()
