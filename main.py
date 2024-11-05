@@ -1,6 +1,5 @@
 import os
 import logging
-import time
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
@@ -67,15 +66,18 @@ def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offse
 # Function to add text to the image
 async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red", font_path=None):
     try:
+        # Open the image file
         user_image = Image.open(photo_path)
-        user_image = user_image.convert("RGBA")
+        user_image = user_image.convert("RGBA")  # Convert image to RGBA mode to support transparency
 
         max_width, max_height = user_image.size
         font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height, font_path)
 
+        # Adjust the text size
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
 
+        # Calculate text position to center it
         x = (max_width - text_width) // 2 + x_offset
         y = (max_height - text_height) // 2 + y_offset
         text_position = (x, y)
@@ -83,100 +85,64 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         draw = ImageDraw.Draw(user_image)
         add_3d_text(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
 
+        # Save the final image
         user_image.save(output_path, "PNG")
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Function to clean session and restart
-def restart_bot():
-    logger.error("Session has been revoked. Cleaning up the session and restarting...")
-    session_file = "logo_creator_bot.session"  # This is the default session file
-    if os.path.exists(session_file):
-        os.remove(session_file)  # Remove session file to force re-login
-    time.sleep(3)  # Wait before re-initializing the bot
-    start_bot()  # Re-initialize the bot
-
-# Start bot with retry logic
-def start_bot():
-    try:
-        app.run()
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        if "401 SESSION_REVOKED" in str(e):
-            restart_bot()  # Restart the bot if session is revoked
-
-# Handler for the '/start' command
-@app.on_message(filters.command("start"))
-async def start_command(_, message: Message) -> None:
-    """Welcomes the user with instructions."""
-    welcome_text = (
-        "👋 Welcome to the Logo Creator Bot!\n\n"
-        "With this bot, you can create logos. Just send a photo to get started!"
-    )
-
-    keyboard = [
-        [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
-
-# Handler for incoming photos
+# Function to handle when a user sends a photo
 @app.on_message(filters.photo & filters.private)
-async def photo_handler(_, message: Message) -> None:
-    """Handles incoming photo messages for logo creation."""
-    try:
-        local_path = await message.download()
-        await message.reply_text("Photo received! Now, send the text for your logo.")
+async def photo_handler(_, message: Message):
+    if message.photo:
+        # Save the user's photo locally
+        photo_path = f"user_photos/{message.photo.file_id}.jpg"
+        await message.download(photo_path)  # Download the photo to the specified path
 
-    except Exception as e:
-        logger.error(f"Error in photo handling: {e}")
-        await message.reply_text("Failed to process the photo. Please try again.")
+        # Save user data (photo path, text, and settings)
+        await save_user_data(message.from_user.id, {'photo_path': photo_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
 
-# Handler for text input after photo
+        await message.reply_text("Ab apna logo text bheje.")
+
+# Function to save user data (you can update this as per your needs)
+async def save_user_data(user_id, data):
+    # Here, you would typically save the data to a database, but for simplicity, it's just logged
+    logger.info(f"Saving data for user {user_id}: {data}")
+    # You can save the data to a file or database as per your logic
+
+# Handler for receiving logo text after photo
 @app.on_message(filters.text & filters.private)
-async def text_handler(_, message: Message) -> None:
-    """Handles text input from user for logo text."""
+async def text_handler(_, message: Message):
+    user_id = message.from_user.id
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
+        await message.reply_text("Pehle apna photo bheje.")
+        return
+
     user_text = message.text.strip()
 
     if not user_text:
-        return await message.reply_text("Please send some text for your logo.")
+        await message.reply_text("Logo text dena hoga.")
+        return
 
-    await message.reply_text(f"Text for logo: {user_text}. Now, choose a font style.")
+    # Save the text into the user's data
+    user_data['text'] = user_text
+    await save_user_data(user_id, user_data)
 
-    # Proceed to font selection logic (can implement font selection buttons here)
-    font_buttons = create_font_buttons()  # Assuming this function is in 'private_buttons.py'
+    # Send font selection buttons
+    font_buttons = create_font_buttons()
     await message.reply_text(
-        "Please choose a font for your logo:",
+        "Apna font choose karein:", 
         reply_markup=InlineKeyboardMarkup([font_buttons])
     )
 
-# Handler for font selection
-@app.on_callback_query(filters.regex("^font_"))
-async def font_button_handler(_, callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    selected_font_name = callback_query.data.split("_")[1]
-    selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
+# Start command handler
+@app.on_message(filters.command("start") & filters.private)
+async def start(_, message: Message):
+    await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
 
-    if selected_font:
-        user_data = {
-            "selected_font": selected_font['path'],
-            "text": callback_query.message.text.strip()
-        }
-
-        # Create logo with selected font
-        photo_path = "path_to_user_photo"  # Should be saved somewhere when photo is received
-        output_path = f"logos/updated_{user_data['text']}_logo.png"
-        result = await add_text_to_image(photo_path, user_data['text'], output_path, font_path=selected_font['path'])
-
-        if result:
-            media = InputMediaPhoto(media=output_path, caption="Here's your logo!")
-            await callback_query.message.edit_media(media=media)
-            await callback_query.answer(f"Font changed to {selected_font_name}")
-
-# Start the bot
 if __name__ == "__main__":
-    start_bot()  # Run bot with retry logic
-        
+    app.run()
+    
