@@ -2,7 +2,7 @@ import os
 import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config  # Ensure you have this file for your bot's config
 
 # Set up logging
@@ -88,46 +88,6 @@ async def photo_handler(_, message: Message):
         # Store the user's photo path and wait for text
         user_data[message.from_user.id] = {'photo_path': photo_path}
 
-# Handler for receiving text and creating the logo
-@app.on_message(filters.text & filters.private)
-async def text_handler(_, message: Message):
-    user_id = message.from_user.id
-    if user_id not in user_data:
-        await message.reply_text("Pehle apna photo bheje.")
-        return
-
-    if message.text:
-        user_text = message.text.strip()
-
-        if not user_text:
-            await message.reply_text("Logo text dena hoga.")
-            return
-
-        # Get the user's photo path
-        photo_path = user_data[user_id]['photo_path']
-        output_path = f"logos/{user_text}_logo.png"
-
-        # Add the logo text to the photo and create the initial logo
-        result = add_text_to_image(photo_path, user_text, output_path)
-
-        if result:
-            # Send the initial logo image to the user with position adjustment buttons
-            buttons = [
-                [InlineKeyboardButton("⬅️ Left", callback_data="left"),
-                 InlineKeyboardButton("⬆️ Up", callback_data="up"),
-                 InlineKeyboardButton("➡️ Right", callback_data="right")],
-                [InlineKeyboardButton("⬇️ Down", callback_data="down"),
-                 InlineKeyboardButton("🔽 Smaller", callback_data="smaller"),
-                 InlineKeyboardButton("🔼 Bigger", callback_data="bigger")]
-            ]
-            await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
-
-            # Store the current state of the image and user adjustments
-            user_data[user_id]['output_path'] = output_path
-            user_data[user_id]['text_position'] = (0, 0)  # Default offset
-            user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
-            user_data[user_id]['text'] = user_text  # Store the text for later use
-
 # Handler for position adjustments through buttons
 @app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger)$"))
 async def button_handler(_, callback_query: CallbackQuery):
@@ -167,9 +127,12 @@ async def button_handler(_, callback_query: CallbackQuery):
     # Regenerate the logo with the new position and size
     add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier)
 
+    # Create InputMediaPhoto object
+    media = InputMediaPhoto(media=output_path, caption="")
+
     # Use `edit_media` to update the photo in the message
     await callback_query.message.edit_media(
-        media={"type": "photo", "media": output_path, "caption": ""},  # Add an empty caption
+        media=media,
         reply_markup=callback_query.message.reply_markup  # Keep the same buttons
     )
 
