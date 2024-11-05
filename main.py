@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config  # Ensure you have this file for your bot's config
-from private_buttons import buttons  # Import buttons from private_buttons.py
+from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -17,10 +17,34 @@ app = Client(
     api_hash=Config.API_HASH,
 )
 
-# Dictionary to store user data (for handling images and text)
+# Font options (fonts stored here)
+FONT_OPTIONS = [
+    {"name": "FIGHTBACK", "path": "fonts/FIGHTBACK.ttf"},
+    {"name": "Arial", "path": "fonts/Lobster-Regular.ttf"},
+    {"name": "Times New Roman", "path": "fonts/OpenSans-Regular.ttf"},
+    {"name": "Courier", "path": "fonts/Pacifico-Regular.ttf"},
+    {"name": "Verdana", "path": "fonts/Roboto-Regular.ttf"},
+]
+
 user_data = {}
 
-# Function to add a 3D text effect with shadow and glow
+# Function to dynamically adjust font size
+def get_dynamic_font(image, text, max_width, max_height, font_path=None):
+    draw = ImageDraw.Draw(image)
+    
+    font_size = 100
+    while font_size > 10:
+        font = ImageFont.truetype(font_path or "fonts/FIGHTBACK.ttf", font_size)
+        text_width, text_height = draw.textsize(text, font=font)
+        
+        if text_width <= max_width and text_height <= max_height:
+            return font, text_width, text_height
+        
+        font_size -= 5
+
+    return font, text_width, text_height
+
+# Function to add 3D text effect with shadow and glow
 def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offset=(5, 5), glow_strength=5):
     """
     Adds a 3D text effect by creating a shadow and the main text.
@@ -45,33 +69,15 @@ def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offse
     # Main text: Draw the main text on top of the shadow and glow
     draw.text((x, y), text, font=font, fill=text_color)
 
-# Function to dynamically adjust text size based on available space
-def get_dynamic_font(image, text, max_width, max_height):
-    draw = ImageDraw.Draw(image)
-    
-    font_size = 100
-    while font_size > 10:
-        font = ImageFont.truetype("fonts/FIGHTBACK.ttf", font_size)
-        text_width, text_height = draw.textsize(text, font=font)
-        
-        # If the text fits within the available space, break the loop
-        if text_width <= max_width and text_height <= max_height:
-            return font, text_width, text_height
-        
-        font_size -= 5  # Reduce font size if text is too big
-
-    return font, text_width, text_height
-
-# Function to add text to an image at a specified position with 3D effect
-def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red"):
+# Function to add text to the image
+def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red", font_path=None):
     try:
         user_image = Image.open(photo_path)
-        user_image = user_image.convert("RGBA")  # Convert to RGBA for transparency
+        user_image = user_image.convert("RGBA")
 
         max_width, max_height = user_image.size
-        font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height)
+        font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height, font_path)
 
-        # Apply size multiplier and adjust position
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
 
@@ -80,7 +86,6 @@ def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, siz
         text_position = (x, y)
 
         draw = ImageDraw.Draw(user_image)
-        # Call the new function for 3D text effect
         add_3d_text(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
 
         user_image.save(output_path, "PNG")
@@ -93,15 +98,11 @@ def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, siz
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message):
     if message.photo:
-        # Save the received photo
         photo_path = f"user_photos/{message.photo.file_id}.jpg"
         await message.download(photo_path)
 
-        # Ask the user to send the logo text
         await message.reply_text("Ab apna logo text bheje.")
-
-        # Store the user's photo path and wait for text
-        user_data[message.from_user.id] = {'photo_path': photo_path, 'text': ''}  # Initialize empty text
+        user_data[message.from_user.id] = {'photo_path': photo_path, 'text': ''}
 
 # Handler for receiving logo text after photo
 @app.on_message(filters.text & filters.private)
@@ -117,27 +118,53 @@ async def text_handler(_, message: Message):
         await message.reply_text("Logo text dena hoga.")
         return
 
-    # Store the text for the user
     user_data[user_id]['text'] = user_text
 
-    # Get the user's photo path
-    photo_path = user_data[user_id]['photo_path']
-    output_path = f"logos/{user_text}_logo.png"
+    # Send font selection buttons
+    font_buttons = create_font_buttons()
+    await message.reply_text(
+        "Apna font choose karein:", 
+        reply_markup=InlineKeyboardMarkup([font_buttons])
+    )
 
-    # Add the logo text to the photo and create the initial logo
-    result = add_text_to_image(photo_path, user_text, output_path)
+    # Initialize default values for position, size, and glow color
+    user_data[user_id]['text_position'] = (0, 0)
+    user_data[user_id]['size_multiplier'] = 1
+    user_data[user_id]['glow_color'] = "red"
 
-    if result:
-        # Send the initial logo image to the user with position adjustment and glow color change buttons
-        await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
+# Handler for font selection
+@app.on_callback_query(filters.regex("^font_"))
+async def font_button_handler(_, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    if user_id not in user_data:
+        return
 
-        # Store the current state of the image and user adjustments
-        user_data[user_id]['output_path'] = output_path
-        user_data[user_id]['text_position'] = (0, 0)  # Default offset
-        user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
-        user_data[user_id]['glow_color'] = "red"  # Default glow color
+    selected_font_name = callback_query.data.split("_")[1]
+    selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
+    
+    if selected_font:
+        user_data[user_id]['selected_font'] = selected_font['path']
+        font_path = selected_font['path']
+        
+        photo_path = user_data[user_id]['photo_path']
+        user_text = user_data[user_id]['text']
+        output_path = f"logos/updated_{user_text}_logo.png"
+        
+        result = add_text_to_image(photo_path, user_text, output_path, font_path=font_path)
 
-# Handler for position adjustments and glow color changes through buttons
+        if result:
+            await callback_query.message.edit_text(
+                "Font selected! Ab apni logo ka position, size aur glow color change karein.",
+                reply_markup=InlineKeyboardMarkup([
+                    *POSITION_SIZE_BUTTONS,
+                    *GLOW_COLOR_BUTTONS
+                ])
+            )
+            media = InputMediaPhoto(media=output_path, caption="")
+            await callback_query.message.edit_media(media=media)
+            await callback_query.answer(f"Font changed to {selected_font_name}")
+
+# Handler for position adjustments, size changes, and glow color changes
 @app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
 async def button_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -147,11 +174,11 @@ async def button_handler(_, callback_query: CallbackQuery):
     action = callback_query.data
     user_info = user_data[user_id]
     
-    # Extract current position, size multiplier, and glow color
     x_offset, y_offset = user_info['text_position']
     size_multiplier = user_info['size_multiplier']
     text = user_info['text']  # Get the logo text
     glow_color = user_info['glow_color']  # Get the selected glow color
+    font_path = user_info['selected_font']
 
     if action == "left":
         x_offset -= 10
@@ -165,7 +192,6 @@ async def button_handler(_, callback_query: CallbackQuery):
         size_multiplier = max(0.5, size_multiplier - 0.1)
     elif action == "bigger":
         size_multiplier = min(2, size_multiplier + 0.1)
-    # Handle glow color changes
     elif action == "glow_red":
         glow_color = "red"
     elif action == "glow_green":
@@ -178,34 +204,22 @@ async def button_handler(_, callback_query: CallbackQuery):
     user_info['size_multiplier'] = size_multiplier
     user_info['glow_color'] = glow_color
 
-    # Get the photo path and re-create the logo with new adjustments
+    # Get the photo path and regenerate the logo with new adjustments
     photo_path = user_info['photo_path']
     output_path = f"logos/updated_{text}_logo.png"
 
-    # Regenerate the logo with the new position, size, and glow color
-    add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, glow_color)
+    result = add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, glow_color, font_path)
 
-    # Create InputMediaPhoto object
-    media = InputMediaPhoto(media=output_path, caption="")
-
-    # Use `edit_media` to update the photo in the message
-    await callback_query.message.edit_media(
-        media=media,
-        reply_markup=callback_query.message.reply_markup  # Keep the same buttons
-    )
+    if result:
+        media = InputMediaPhoto(media=output_path, caption="")
+        await callback_query.message.edit_media(media=media)
+        await callback_query.answer(f"Logo updated with {action}")
 
 # Start command handler
-@app.on_message(filters.command("start"))
-async def start_command(_, message: Message):
-    """Welcomes the user with instructions."""
-    welcome_text = (
-        "👋 Welcome to the Logo Creator Bot!\n\n"
-        " • Upload a photo: Send a photo first.\n"
-        " • Add logo text: After sending the photo, you can provide the text for the logo.\n"
-        " • Receive the logo: After text is added, adjust the position, size, and glow color using buttons.\n"
-        " • Enjoy creating your logos!"
-    )
-    await message.reply_text(welcome_text)
+@app.on_message(filters.command("start") & filters.private)
+async def start(_, message: Message):
+    await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
 
-# Run the bot
-app.run()
+if __name__ == "__main__":
+    app.run()
+        
