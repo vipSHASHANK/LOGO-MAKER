@@ -155,7 +155,7 @@ async def button_handler(_, callback_query: CallbackQuery):
     elif action == "smaller":
         size_multiplier = max(0.5, size_multiplier - 0.1)
     elif action == "bigger":
-        size_multiplier = min(2, size_multiplier + 0.1)
+        size_multiplier = min(2, size_multiplier + 0.3)  # Increase by 0.3 for faster growth
 
     # Update user data with new position and size
     user_info['text_position'] = (x_offset, y_offset)
