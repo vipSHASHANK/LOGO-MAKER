@@ -2,7 +2,7 @@ import os
 import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.errors import Unauthorized, SessionRevoked
+from pyrogram.errors import SessionRevoked  # Only importing SessionRevoked
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
 from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons
@@ -195,10 +195,14 @@ async def start(_, message: Message):
 # Global error handling using try-except for the main part
 try:
     app.run()
-except Unauthorized as e:
-    logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked.")
 except SessionRevoked as e:
     logger.error(f"Session revoked: {str(e)}. The session has been invalidated.")
+    # Restart the bot if session is revoked
+    try:
+        app.stop()  # Stop the current session
+        app.start()  # Restart the session
+    except Exception as ex:
+        logger.error(f"Error during bot restart: {str(ex)}")
 except Exception as e:
     logger.error(f"An unexpected error occurred: {str(e)}")
     
