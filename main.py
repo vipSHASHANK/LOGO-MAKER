@@ -1,49 +1,76 @@
 import logging
-import random
+import os
+from PIL import Image, ImageDraw, ImageFont
+import pyfiglet
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from config import Config
-import pyfiglet  # To generate simple stylish text
-import random  # For adding random symbols
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Stylish Symbols List (random symbols to add around the text)
-stylish_symbols = [
-    "❤", "❀", "✰", "☪", "☽", "☁", "⭐", "✿", "☘", "❖", "✧", "☠", "⚡", "✪", "⚔", "❣", "➸", "✦"
-]
+# Function to create images with stylish text
+def generate_stylish_logo(text, font_path, output_path):
+    """Stylish text ko image format mein generate karne ka function."""
+    try:
+        # Image create karte hain (white background)
+        width, height = 800, 200  # Image size
+        image = Image.new('RGB', (width, height), color='white')  # Create a white canvas
+        draw = ImageDraw.Draw(image)
 
-# Function to convert text to stylish versions using pyfiglet and simple fonts
-def convert_to_stylish_text(input_text):
-    """Text ko stylish formats mein convert kare."""
-    
-    # Simple check for valid characters (letters and spaces)
-    if not input_text.replace(" ", "").isalnum():
-        return "Kripya sirf text daalein, special characters nahi."
+        # Font ko load karte hain
+        font = ImageFont.truetype(font_path, 80)
 
-    stylish_versions = []
+        # Text ka width aur height calculate karte hain
+        text_width, text_height = draw.textsize(text, font=font)
+        position = ((width - text_width) // 2, (height - text_height) // 2)
+
+        # Text ko image par draw karte hain
+        draw.text(position, text, fill="black", font=font)
+
+        # Image save karte hain
+        image.save(output_path)
+        return output_path
+    except Exception as e:
+        logger.error(f"Font {font_path} ke saath image generate karte waqt error: {e}")
+        return None
+
+# Function to convert user text into 10 different stylish logos
+def convert_to_logo_images(user_text):
+    """User ke text ko 10 alag-alag logo images mein convert kare."""
+    # pyfiglet fonts ki list
+    available_fonts = pyfiglet.FigletFont.getFonts()
+
+    # Output directory banate hain
+    output_dir = "logos"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    image_paths = []
     
-    # Create 10 different stylish text versions
-    for _ in range(10):
-        # Randomize the font style using pyfiglet
+    # 10 fonts select karte hain (pehle 10 fonts lete hain)
+    fonts = available_fonts[:10]  # Pehle 10 fonts se images generate karenge
+    
+    for i, font in enumerate(fonts):
         try:
-            figlet_version = pyfiglet.figlet_format(input_text, font="slant")  # Using slant font for readability
-            stylish_versions.append(figlet_version.strip())
+            # pyfiglet ka use karke text ko stylish font mein convert karte hain
+            figlet_text = pyfiglet.figlet_format(user_text, font=font)
+            
+            # Image ka path banate hain
+            image_path = os.path.join(output_dir, f"{user_text}_{i + 1}.png")
+            
+            # Image ko generate karte hain
+            if generate_stylish_logo(figlet_text, font, image_path):
+                image_paths.append(image_path)
         except Exception as e:
-            logger.error(f"Error in pyfiglet: {e}")
-        
-        # Add stylish symbols around the text for decoration
-        symbol = random.choice(stylish_symbols)
-        stylish_versions_with_symbols = f"{symbol} {input_text} {symbol}"
-        stylish_versions.append(stylish_versions_with_symbols)
-    
-    return stylish_versions
+            logger.error(f"Font '{font}' ke liye image generate karte waqt error: {e}")
 
-# Text handler (processing the user input text and generating stylish outputs)
+    return image_paths
+
+# Text handler (user ka text receive karna aur usko image format mein reply dena)
 async def text_handler(_, message: Message) -> None:
-    """Incoming text messages ko process karein aur stylish text return karein."""
+    """User ka text receive karke usko stylish logo images ke roop mein reply karna."""
     if message.text:
         user_text = message.text.strip()
 
@@ -51,31 +78,27 @@ async def text_handler(_, message: Message) -> None:
             await message.reply_text("Kripya kuch text bhejein jise main style kar sakoon.")
             return
         
-        # Convert the text to stylish versions with symbols
-        stylish_texts = convert_to_stylish_text(user_text)
+        # Text ko 10 stylish logo images mein convert karte hain
+        image_paths = convert_to_logo_images(user_text)
         
-        # Agar text ko convert nahi kar sakte to error message bhejenge
-        if isinstance(stylish_texts, str):
-            await message.reply_text(stylish_texts)
-        else:
-            # Har ek stylish version ko user ko bhejna
-            for stylish_version in stylish_texts:
-                await message.reply_text(stylish_version)
+        # Har image ko user ko bhejte hain
+        for image_path in image_paths:
+            await message.reply_photo(image_path)
 
 # Main entry point to run the bot
 if __name__ == "__main__":
     app = Client(
-        "stylish_text_bot_session",  # Session name
+        "stylish_text_logo_bot_session",  # Session name
         bot_token=Config.BOT_TOKEN,
         api_id=Config.API_ID,
         api_hash=Config.API_HASH,
     )
 
     if app:
-        # Define handlers after the app is created
+        # Handlers define karte hain
         app.on_message(filters.text & filters.private)(text_handler)
 
-        # Run the bot
+        # Bot ko run karte hain
         app.run()
     else:
         logger.error("Client banane mein kuch problem aayi.")
