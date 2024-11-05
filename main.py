@@ -39,8 +39,15 @@ def generate_stylish_logo(text, font_path, output_path):
 # Function to convert user text into 10 different stylish logos
 def convert_to_logo_images(user_text):
     """User ke text ko 10 alag-alag logo images mein convert kare."""
-    # pyfiglet fonts ki list
-    available_fonts = pyfiglet.FigletFont.getFonts()
+    # Fonts ka path (aapko fonts ko download karke yahan specify karna hoga)
+    fonts = [
+        "fonts/Roboto-Regular.ttf",        # Example font 1
+        "fonts/OpenSans-Regular.ttf",      # Example font 2
+        "fonts/Lobster-Regular.ttf",       # Example font 3
+        "fonts/Pacifico-Regular.ttf",      # Example font 4
+        "fonts/Monospace.ttf",             # Example font 5
+        # Aur fonts yahan add kar sakte hain
+    ]
 
     # Output directory banate hain
     output_dir = "logos"
@@ -48,20 +55,15 @@ def convert_to_logo_images(user_text):
         os.makedirs(output_dir)
 
     image_paths = []
-    
-    # 10 fonts select karte hain (pehle 10 fonts lete hain)
-    fonts = available_fonts[:10]  # Pehle 10 fonts se images generate karenge
-    
+
+    # 10 fonts select karte hain
     for i, font in enumerate(fonts):
         try:
-            # pyfiglet ka use karke text ko stylish font mein convert karte hain
-            figlet_text = pyfiglet.figlet_format(user_text, font=font)
-            
             # Image ka path banate hain
             image_path = os.path.join(output_dir, f"{user_text}_{i + 1}.png")
             
             # Image ko generate karte hain
-            if generate_stylish_logo(figlet_text, font, image_path):
+            if generate_stylish_logo(user_text, font, image_path):
                 image_paths.append(image_path)
         except Exception as e:
             logger.error(f"Font '{font}' ke liye image generate karte waqt error: {e}")
