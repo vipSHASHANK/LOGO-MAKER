@@ -2,6 +2,7 @@ import os
 import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
+from pyrogram.errors import Unauthorized
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -22,6 +23,7 @@ app = Client(
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
+    workers=2  # Set number of workers to handle requests faster
 )
 
 # Font options (fonts stored here)
@@ -243,6 +245,15 @@ async def button_handler(_, callback_query: CallbackQuery):
 @app.on_message(filters.command("start") & filters.private)
 async def start(_, message: Message):
     await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
+
+# Handle Unauthorized errors (Session Revoked)
+@app.on_error(Unauthorized)
+async def handle_unauthorized_error(_, e):
+    logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked or the session expired.")
+    # Reset the session to allow the bot to re-authorize
+    await app.stop()
+    await app.start()
+    logger.info("Bot session restarted successfully.")
 
 if __name__ == "__main__":
     app.run()
