@@ -86,7 +86,48 @@ async def photo_handler(_, message: Message):
         await message.reply_text("Ab apna logo text bheje.")
 
         # Store the user's photo path and wait for text
-        user_data[message.from_user.id] = {'photo_path': photo_path}
+        user_data[message.from_user.id] = {'photo_path': photo_path, 'text': ''}  # Initialize empty text
+
+# Handler for receiving logo text after photo
+@app.on_message(filters.text & filters.private)
+async def text_handler(_, message: Message):
+    user_id = message.from_user.id
+    if user_id not in user_data:
+        await message.reply_text("Pehle apna photo bheje.")
+        return
+
+    user_text = message.text.strip()
+
+    if not user_text:
+        await message.reply_text("Logo text dena hoga.")
+        return
+
+    # Store the text for the user
+    user_data[user_id]['text'] = user_text
+
+    # Get the user's photo path
+    photo_path = user_data[user_id]['photo_path']
+    output_path = f"logos/{user_text}_logo.png"
+
+    # Add the logo text to the photo and create the initial logo
+    result = add_text_to_image(photo_path, user_text, output_path)
+
+    if result:
+        # Send the initial logo image to the user with position adjustment buttons
+        buttons = [
+            [InlineKeyboardButton("⬅️ Left", callback_data="left"),
+             InlineKeyboardButton("⬆️ Up", callback_data="up"),
+             InlineKeyboardButton("➡️ Right", callback_data="right")],
+            [InlineKeyboardButton("⬇️ Down", callback_data="down"),
+             InlineKeyboardButton("🔽 Smaller", callback_data="smaller"),
+             InlineKeyboardButton("🔼 Bigger", callback_data="bigger")]
+        ]
+        await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
+
+        # Store the current state of the image and user adjustments
+        user_data[user_id]['output_path'] = output_path
+        user_data[user_id]['text_position'] = (0, 0)  # Default offset
+        user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
 
 # Handler for position adjustments through buttons
 @app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger)$"))
