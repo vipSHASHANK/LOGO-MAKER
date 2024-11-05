@@ -165,10 +165,52 @@ async def font_handler(_, message: Message):
 
         await message.reply_text(f"Apne font '{selected_font['name']}' ko select kiya hai.")
 
-        # Ask for logo text color
-        await message.reply_text("Apna logo text ka rang batao.")
+        # Ask for text color
+        await message.reply_text("Apna logo text ka rang batao (Red, Green, Blue, etc.).")
+
     else:
         await message.reply_text("Invalid font selection.")
+
+# Text color handler
+@app.on_message(filters.text & filters.private)
+async def text_color_handler(_, message: Message):
+    user_id = message.from_user.id
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
+        await message.reply_text("Pehle apna photo bheje.")
+        return
+
+    user_text_color = message.text.strip().lower()
+
+    # Define some standard colors (you can extend it)
+    valid_colors = ["red", "green", "blue", "yellow", "white", "black"]
+    
+    if user_text_color in valid_colors:
+        user_data['text_color'] = user_text_color
+        await save_user_data(user_id, user_data)
+
+        await message.reply_text(f"Apne text color '{user_text_color}' ko select kiya hai.")
+
+        # Now create the logo
+        photo_path = user_data['photo_path']
+        text = user_data['text']
+        output_path = f"user_photos/output_{user_id}.png"
+
+        # Add text to image
+        added_text_image = await add_text_to_image(
+            photo_path, text, output_path, size_multiplier=1, glow_color="yellow", font_path=user_data['font']['path']
+        )
+
+        if added_text_image:
+            await message.reply_photo(
+                added_text_image,
+                caption="Yeh raha aapka logo!"
+            )
+        else:
+            await message.reply_text("Logo banate waqt kuch galat ho gaya.")
+    else:
+        await message.reply_text("Invalid color selected. Please choose from the valid colors (Red, Green, Blue, Yellow, White, Black).")
 
 # Start command handler
 @app.on_message(filters.command("start") & filters.private)
