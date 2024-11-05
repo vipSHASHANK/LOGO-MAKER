@@ -2,13 +2,16 @@ import os
 import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from config import Config  # Ensure you have this file for your bot's config
-from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Button imports
+from private_buttons import create_font_buttons  # Button imports
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# In-memory user data storage (You can use a database if required)
+user_data_store = {}
 
 # Bot Setup
 app = Client(
@@ -107,9 +110,13 @@ async def photo_handler(_, message: Message):
 
 # Function to save user data (you can update this as per your needs)
 async def save_user_data(user_id, data):
-    # Here, you would typically save the data to a database, but for simplicity, it's just logged
+    # Here, we are using in-memory dictionary to store user data
+    user_data_store[user_id] = data
     logger.info(f"Saving data for user {user_id}: {data}")
-    # You can save the data to a file or database as per your logic
+
+# Function to retrieve user data (from in-memory dictionary)
+async def get_user_data(user_id):
+    return user_data_store.get(user_id, None)
 
 # Handler for receiving logo text after photo
 @app.on_message(filters.text & filters.private)
@@ -137,6 +144,31 @@ async def text_handler(_, message: Message):
         "Apna font choose karein:", 
         reply_markup=InlineKeyboardMarkup([font_buttons])
     )
+
+# Font selection handler
+@app.on_message(filters.regex("font_") & filters.private)
+async def font_handler(_, message: Message):
+    user_id = message.from_user.id
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
+        await message.reply_text("Pehle apna photo bheje.")
+        return
+
+    font_choice = message.text.strip().split('_')[1]
+    selected_font = next((font for font in FONT_OPTIONS if font['name'].lower() == font_choice.lower()), None)
+
+    if selected_font:
+        # Save selected font into user data
+        user_data['font'] = selected_font
+        await save_user_data(user_id, user_data)
+
+        await message.reply_text(f"Apne font '{selected_font['name']}' ko select kiya hai.")
+
+        # Ask for logo text color
+        await message.reply_text("Apna logo text ka rang batao.")
+    else:
+        await message.reply_text("Invalid font selection.")
 
 # Start command handler
 @app.on_message(filters.command("start") & filters.private)
