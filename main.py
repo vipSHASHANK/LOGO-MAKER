@@ -3,7 +3,7 @@ import os
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-import random  # <-- Add this line to import random module
+import random
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from config import Config
@@ -27,8 +27,8 @@ def add_glow(draw, position, text, font, glow_color, text_color, glow_strength=1
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
     draw.text(position, text, font=font, fill=text_color)
 
-# Function to detect logo position using OpenCV (contour detection)
-def detect_logo_position(image_path):
+# Function to detect suitable empty area in the image (using contours)
+def detect_empty_area(image_path):
     # Read the image
     image = cv2.imread(image_path)
 
@@ -58,7 +58,7 @@ def detect_logo_position(image_path):
 def add_text_to_image(photo_path, text, output_path):
     try:
         # Detect the position where the logo should be placed
-        position = detect_logo_position(photo_path)
+        position = detect_empty_area(photo_path)
 
         if position is None:
             logger.error("No suitable area found for placing the logo.")
