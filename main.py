@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import random
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from config import Config
 
 # Set up logging
@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 fonts = [
     "fonts/FIGHTBACK.ttf"  # Replace with the path to a stylized, rough font
 ]
+
+# Dictionary to store user data
+user_data = {}
 
 # Function to add refined glow effect to text
 def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_strength=5):
@@ -33,7 +36,7 @@ def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_st
 def detect_empty_area(image_path):
     # Read the image
     image = cv2.imread(image_path)
-
+    
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -77,7 +80,7 @@ def get_dynamic_font(image, text, max_width, max_height):
     return font, text_width, text_height
 
 # Function to add text to an image at the detected position
-def add_text_to_image(photo_path, text, output_path):
+def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1):
     try:
         # Detect the position where the logo should be placed
         position = detect_empty_area(photo_path)
@@ -95,9 +98,13 @@ def add_text_to_image(photo_path, text, output_path):
 
         # Dynamically calculate the font size to fit within the detected area
         font, text_width, text_height = get_dynamic_font(user_image, text, w, h)
-        
-        # Calculate text position to center it within the bounding box
-        text_position = (x + (w - text_width) // 2, y + (h - text_height) // 2)
+
+        # Apply size multiplier and adjust position
+        text_width = int(text_width * size_multiplier)
+        text_height = int(text_height * size_multiplier)
+
+        # Calculate new position with offsets
+        text_position = (x + (w - text_width) // 2 + x_offset, y + (h - text_height) // 2 + y_offset)
 
         # Add refined glow effect to text
         draw = ImageDraw.Draw(user_image)
@@ -123,7 +130,7 @@ async def photo_handler(_, message: Message):
         # Store the user's photo path and wait for text
         user_data[message.from_user.id] = {'photo_path': photo_path}
 
-# Handler for receiving text and adding it to the photo
+# Handler for receiving text and creating the logo
 async def text_handler(_, message: Message):
     user_id = message.from_user.id
     if user_id not in user_data:
@@ -141,35 +148,42 @@ async def text_handler(_, message: Message):
         photo_path = user_data[user_id]['photo_path']
         output_path = f"logos/{user_text}_logo.png"
 
-        # Add the logo text to the photo
+        # Add the logo text to the photo and create the initial logo
         result = add_text_to_image(photo_path, user_text, output_path)
 
         if result:
-            # Send the updated photo to the user
-            await message.reply_photo(output_path)
+            # Send the initial logo image to the user with buttons for position adjustments
+            buttons = [
+                [InlineKeyboardButton("Left", callback_data="left"),
+                 InlineKeyboardButton("Right", callback_data="right")],
+                [InlineKeyboardButton("Up", callback_data="up"),
+                 InlineKeyboardButton("Down", callback_data="down")],
+                [InlineKeyboardButton("Smaller", callback_data="smaller"),
+                 InlineKeyboardButton("Bigger", callback_data="bigger")]
+            ]
+            await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
 
-            # Optionally clear the user data after use
-            del user_data[user_id]
+            # Store the current state of the image and user adjustments
+            user_data[user_id]['output_path'] = output_path
+            user_data[user_id]['text_position'] = (0, 0)  # Default offset
+            user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
 
-# Main entry point to run the bot
-if __name__ == "__main__":
-    app = Client(
-        "stylish_text_logo_bot_session",  # Session name
-        bot_token=Config.BOT_TOKEN,
-        api_id=Config.API_ID,
-        api_hash=Config.API_HASH,
-    )
+# Handler for position adjustments through buttons
+async def button_handler(_, callback_query):
+    user_id = callback_query.from_user.id
+    if user_id not in user_data:
+        return
 
-    # Dictionary to store user data (photo and logo text)
-    user_data = {}
+    # Extract the action from the button pressed
+    action = callback_query.data
+    user_info = user_data[user_id]
+    
+    # Adjust position or size based on action
+    x_offset, y_offset = user_info['text_position']
+    size_multiplier = user_info['size_multiplier']
 
-    if app:
-        # Handlers define karte hain
-        app.on_message(filters.photo & filters.private)(photo_handler)
-        app.on_message(filters.text & filters.private)(text_handler)
-
-        # Bot ko run karte hain
-        app.run()
-    else:
-        logger.error("Client banane mein kuch problem aayi.")
-        
+    if action == "left":
+        x_offset -= 10
+    elif action == "right":
+        x
+    
