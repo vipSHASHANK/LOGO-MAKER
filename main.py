@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config  # Ensure you have this file for your bot's config
+from private_buttons import position_buttons  # Import buttons from private_buttons.py
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -114,15 +115,7 @@ async def text_handler(_, message: Message):
 
     if result:
         # Send the initial logo image to the user with position adjustment buttons
-        buttons = [
-            [InlineKeyboardButton("⬅️ Left", callback_data="left"),
-             InlineKeyboardButton("⬆️ Up", callback_data="up"),
-             InlineKeyboardButton("➡️ Right", callback_data="right")],
-            [InlineKeyboardButton("⬇️ Down", callback_data="down"),
-             InlineKeyboardButton("🔽 Smaller", callback_data="smaller"),
-             InlineKeyboardButton("🔼 Bigger", callback_data="bigger")]
-        ]
-        await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
+        await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(position_buttons))
 
         # Store the current state of the image and user adjustments
         user_data[user_id]['output_path'] = output_path
