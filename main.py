@@ -2,7 +2,7 @@ import os
 import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
 from config import Config  # Ensure you have this file for your bot's config
 
 # Set up logging
@@ -111,11 +111,63 @@ async def text_handler(_, message: Message):
         result = add_text_to_image(photo_path, user_text, output_path)
 
         if result:
-            # Send the initial logo image to the user
-            await message.reply_photo(output_path)
+            # Send the initial logo image to the user with position adjustment buttons
+            buttons = [
+                [InlineKeyboardButton("⬅️ Left", callback_data="left"),
+                 InlineKeyboardButton("⬆️ Up", callback_data="up"),
+                 InlineKeyboardButton("⬅️ Right", callback_data="right")],
+                [InlineKeyboardButton("⬇️ Down", callback_data="down"),
+                 InlineKeyboardButton("🔽 Smaller", callback_data="smaller"),
+                 InlineKeyboardButton("🔼 Bigger", callback_data="bigger")]
+            ]
+            await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
 
-            # Store the current state of the image
+            # Store the current state of the image and user adjustments
             user_data[user_id]['output_path'] = output_path
+            user_data[user_id]['text_position'] = (0, 0)  # Default offset
+            user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
+
+# Handler for position adjustments through buttons
+@app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger)$"))
+async def button_handler(_, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    if user_id not in user_data:
+        return
+
+    action = callback_query.data
+    user_info = user_data[user_id]
+    
+    # Extract current position and size multiplier
+    x_offset, y_offset = user_info['text_position']
+    size_multiplier = user_info['size_multiplier']
+
+    if action == "left":
+        x_offset -= 10
+    elif action == "right":
+        x_offset += 10
+    elif action == "up":
+        y_offset -= 10
+    elif action == "down":
+        y_offset += 10
+    elif action == "smaller":
+        size_multiplier = max(0.5, size_multiplier - 0.1)
+    elif action == "bigger":
+        size_multiplier = min(2, size_multiplier + 0.1)
+
+    # Update user data with new position and size
+    user_info['text_position'] = (x_offset, y_offset)
+    user_info['size_multiplier'] = size_multiplier
+
+    # Get the photo path and text to re-create the logo with new adjustments
+    photo_path = user_info['photo_path']
+    text = user_info.get('text', '')  # Keep original text from user
+    output_path = f"logos/updated_{text}_logo.png"
+
+    # Regenerate the logo with the new position and size
+    add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier)
+
+    # Send the updated logo image
+    await callback_query.message.edit_photo(output_path)
 
 # Start command handler
 @app.on_message(filters.command("start"))
@@ -138,4 +190,4 @@ async def start_command(_, message: Message):
 # Main entry point to run the bot
 if __name__ == "__main__":
     app.run()
-        
+    
