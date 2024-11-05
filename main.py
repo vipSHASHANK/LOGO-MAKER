@@ -21,30 +21,39 @@ def create_client(session_name):
         api_hash=Config.API_HASH,
     )
 
+# इमेज की शार्पनेस चेक करने के लिए फ़ंक्शन
+def is_image_sharp(image_path):
+    """ इमेज की शार्पनेस चेक करें। """
+    image = cv2.imread(image_path)
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    laplacian_var = cv2.Laplacian(gray_image, cv2.CV_64F).var()
+    
+    # यदि शार्पनेस कम हो तो इमेज खराब है (ज्यादा वैरिएंस मतलब शार्प इमेज)
+    if laplacian_var < 100:
+        return False  # इमेज बहुत धुंधली है
+    return True
+
 # इमेज को सुधारने के लिए फ़ंक्शन
 def enhance_image(input_image_path, output_image_path):
     try:
         # पिलो (Pillow) का उपयोग करके इमेज खोलें
         img = Image.open(input_image_path)
 
-        # 1. कंट्रास्ट सुधारें
+        # 1. कंट्रास्ट सुधारें (हल्का कंट्रास्ट)
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(2.5)  # कंट्रास्ट बढ़ाएं
+        img = enhancer.enhance(1.5)  # कंट्रास्ट हल्का बढ़ाएं
 
-        # 2. ब्राइटनेस सुधारें
+        # 2. ब्राइटनेस सुधारें (हल्की ब्राइटनेस)
         enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.5)  # ब्राइटनेस बढ़ाएं
+        img = enhancer.enhance(1.2)  # ब्राइटनेस हल्का बढ़ाएं
 
-        # 3. शार्पनेस सुधारें (Pillow का उपयोग)
+        # 3. शार्पनेस सुधारें (हल्की शार्पनेस)
         enhancer = ImageEnhance.Sharpness(img)
-        img = enhancer.enhance(2.0)  # शार्पनेस बढ़ाएं
+        img = enhancer.enhance(1.5)  # शार्पनेस बढ़ाएं, लेकिन ज्यादा नहीं
 
-        # 4. कलर सैचुरेशन बढ़ाएं (Vibrance)
+        # 4. कलर सैचुरेशन बढ़ाएं (हल्का सैचुरेशन)
         enhancer = ImageEnhance.Color(img)
-        img = enhancer.enhance(2.0)  # कलर सैचुरेशन बढ़ाएं
-
-        # 5. Gaussian Blur (स्मूथ लुक के लिए)
-        img = img.filter(ImageFilter.GaussianBlur(radius=1))
+        img = enhancer.enhance(1.5)  # कलर सैचुरेशन हल्का बढ़ाएं
 
         # इमेज को सेव करें
         img.save(output_image_path)
@@ -81,7 +90,6 @@ def apply_opencv_enhancements(image_path):
 
     return enhanced_image_path
 
-
 # अब बोट को चलाने के लिए क्लाइंट को डिफाइन करें
 app = create_client("photo_enhancer_session")
 
@@ -111,6 +119,12 @@ async def photo_handler(_, message: Message) -> None:
 
         # इमेज को डाउनलोड करें
         local_path = await media.download()
+
+        # चेक करें कि इमेज शार्प है या नहीं
+        if not is_image_sharp(local_path):
+            await text.edit_text("This image seems blurry or of low quality. Please send a better one.")
+            os.remove(local_path)
+            return
 
         # सुधारित इमेज का पथ सेट करें
         enhanced_image_path = "enhanced_" + os.path.basename(local_path)
