@@ -89,6 +89,15 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         logger.error(f"Error adding text to image: {e}")
         return None
 
+# Function to clean session and restart
+def restart_bot():
+    logger.error("Session has been revoked. Cleaning up the session and restarting...")
+    session_file = "logo_creator_bot.session"  # This is the default session file
+    if os.path.exists(session_file):
+        os.remove(session_file)  # Remove session file to force re-login
+    time.sleep(3)  # Wait before re-initializing the bot
+    start_bot()  # Re-initialize the bot
+
 # Start bot with retry logic
 def start_bot():
     try:
@@ -96,9 +105,7 @@ def start_bot():
     except Exception as e:
         logger.error(f"Error: {e}")
         if "401 SESSION_REVOKED" in str(e):
-            logger.error("Session was revoked. Attempting to restart the bot...")
-            time.sleep(5)  # Wait before retrying
-            start_bot()  # Retry starting the bot
+            restart_bot()  # Restart the bot if session is revoked
 
 # Handler for the '/start' command
 @app.on_message(filters.command("start"))
@@ -169,17 +176,7 @@ async def font_button_handler(_, callback_query: CallbackQuery):
             await callback_query.message.edit_media(media=media)
             await callback_query.answer(f"Font changed to {selected_font_name}")
 
-# Error Handling (Generic Exception Handler)
-@app.on_message(filters.private)
-async def generic_error_handler(_, message: Message):
-    try:
-        # Your regular handler logic here
-        pass
-    except Exception as e:
-        logger.error(f"An error occurred: {str(e)}")
-        await message.reply_text(f"An error occurred: {str(e)}")
-
 # Start the bot
 if __name__ == "__main__":
     start_bot()  # Run bot with retry logic
-                       
+        
