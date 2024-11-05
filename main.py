@@ -2,25 +2,21 @@ import os
 import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.errors import SessionRevoked  # Only importing SessionRevoked
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
-from config import Config
+from config import Config  # Ensure you have this file for your bot's config
 from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons
-import time
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Pyrogram Bot Setup
-def create_app():
-    return Client(
-        "logo_creator_bot",
-        bot_token=Config.BOT_TOKEN,
-        api_id=Config.API_ID,
-        api_hash=Config.API_HASH,
-        workers=2  # Set number of workers to handle requests faster
-    )
+app = Client(
+    "logo_creator_bot",
+    bot_token=Config.BOT_TOKEN,
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+)
 
 # Font options (fonts stored here)
 FONT_OPTIONS = [
@@ -93,32 +89,134 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Reinitialize the bot after session is revoked
-async def restart_bot():
-    try:
-        app.stop()  # Stop the previous client instance
-        logger.info("Bot stopped. Restarting the bot.")
-        time.sleep(2)  # Giving some time before reinitializing
-        app = create_app()  # Reinitialize the bot client
-        await app.start()  # Start the bot again
-        logger.info("Bot restarted successfully.")
-    except Exception as e:
-        logger.error(f"Error during bot restart: {e}")
+# Initialize bot
+@app.on_message(filters.command("start"))
+async def start_command(_, message: Message) -> None:
+    """Welcomes the user with instructions."""
+    welcome_text = (
+        "👋 Welcome to the Logo Creator Bot!\n\n"
+        "With this bot, you can create custom logos by sending a photo and adding text to it.\n"
+        "Send a photo to get started."
+    )
 
-# Initialize the bot and run it
-async def main():
-    try:
-        app = create_app()  # Initialize the app
-        await app.start()
-    except SessionRevoked as e:
-        logger.error(f"Session revoked: {str(e)}. The session has been invalidated.")
-        # Restart the bot if session is revoked
-        await restart_bot()  # This will reinitialize and restart the bot
-    except Exception as e:
-        logger.error(f"An unexpected error occurred: {str(e)}")
+    keyboard = [
+        [InlineKeyboardButton("Join 👋", url="https://t.me/Your_Channel_Link")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
+
+# Handler for receiving photo
+@app.on_message(filters.photo & filters.private)
+async def photo_handler(_, message: Message) -> None:
+    """Handles incoming photo messages by saving it for logo creation."""
+    if message.photo:
+        photo_path = f"user_photos/{message.photo.file_id}.jpg"
+        await message.download(photo_path)
+
+        # Save initial user data in memory or a database (if necessary)
+        # Just saving the photo path in this case for simplicity
+        user_data = {"photo_path": photo_path, "text": "", "text_position": (0, 0), "size_multiplier": 1, "glow_color": "red"}
+        
+        await message.reply_text("Now send the text you want on the logo.")
+
+# Handler for receiving logo text after photo
+@app.on_message(filters.text & filters.private)
+async def text_handler(_, message: Message) -> None:
+    """Handles text input for the logo."""
+    user_text = message.text.strip()
+
+    if not user_text:
+        await message.reply_text("Please send the text you want to add to the logo.")
+        return
+
+    user_data = {"text": user_text}
+
+    # Send font selection buttons from private_buttons
+    font_buttons = create_font_buttons()
+
+    await message.reply_text(
+        "Choose your font:", 
+        reply_markup=InlineKeyboardMarkup(font_buttons)
+    )
+
+# Handler for font selection
+@app.on_callback_query(filters.regex("^font_"))
+async def font_button_handler(_, callback_query: CallbackQuery):
+    """Handles the selection of font for the logo."""
+    selected_font_name = callback_query.data.split("_")[1]
+    selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
+
+    if selected_font:
+        user_data = {"selected_font": selected_font['path']}
+
+        # Generate logo with selected font
+        photo_path = user_data["photo_path"]
+        user_text = user_data["text"]
+        output_path = f"logos/{user_text}_logo.png"
+        
+        result = await add_text_to_image(photo_path, user_text, output_path, font_path=selected_font['path'])
+
+        if result:
+            media = InputMediaPhoto(media=output_path, caption="")
+            await callback_query.message.edit_media(media=media)
+            await callback_query.answer(f"Font changed to {selected_font_name}")
+
+            # Send position, size, and glow color adjustment buttons
+            await callback_query.message.edit_text(
+                "Now, adjust the position, size, and glow color for your logo.",
+                reply_markup=InlineKeyboardMarkup([
+                    *POSITION_SIZE_BUTTONS,
+                    *GLOW_COLOR_BUTTONS
+                ])
+            )
+
+# Handler for position adjustments, size changes, and glow color changes
+@app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
+async def button_handler(_, callback_query: CallbackQuery):
+    """Handles position, size, and glow adjustments."""
+    user_data = {"text_position": (0, 0), "size_multiplier": 1, "glow_color": "red"}
+    action = callback_query.data
+    x_offset, y_offset = user_data['text_position']
+    size_multiplier = user_data['size_multiplier']
+    text = user_data['text']
+    glow_color = user_data['glow_color']
+    font_path = user_data['selected_font']
+
+    # Adjust position, size, and glow color based on action
+    if action == "left":
+        x_offset -= 10
+    elif action == "right":
+        x_offset += 10
+    elif action == "up":
+        y_offset -= 10
+    elif action == "down":
+        y_offset += 10
+    elif action == "smaller":
+        size_multiplier = max(0.5, size_multiplier - 0.1)
+    elif action == "bigger":
+        size_multiplier = min(2, size_multiplier + 0.1)
+    elif action == "glow_red":
+        glow_color = "red"
+    elif action == "glow_green":
+        glow_color = "green"
+    elif action == "glow_blue":
+        glow_color = "blue"
+
+    # Update user data with new position, size, and glow color
+    user_data['text_position'] = (x_offset, y_offset)
+    user_data['size_multiplier'] = size_multiplier
+    user_data['glow_color'] = glow_color
+
+    # Regenerate the logo with new adjustments
+    output_path = await add_text_to_image(user_data['photo_path'], text, f"logos/{text}_logo.png", x_offset, y_offset, size_multiplier, glow_color, font_path)
+
+    if output_path:
+        media = InputMediaPhoto(media=output_path, caption="Here is your updated logo!")
+        await callback_query.message.edit_media(media=media)
+        await callback_query.answer(f"Logo updated with {action}.")
 
 # Start the bot
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
-        
+    app.run()
+    
