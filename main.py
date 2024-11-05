@@ -8,7 +8,7 @@ from pyrogram.errors import SessionRevoked
 import sqlite3
 
 # Logging Setup
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)  # Set to DEBUG to get detailed logs
 logger = logging.getLogger(__name__)
 
 # PixelCut API setup
@@ -25,8 +25,16 @@ def set_wal_mode(session_name="photo_enhancer_session"):
     except Exception as e:
         logger.error(f"Failed to set WAL mode: {e}")
 
+# Function to delete the session file if it exists
+def delete_session_file(session_name="photo_enhancer_session"):
+    session_file = f"{session_name}.session"
+    if os.path.exists(session_file):
+        os.remove(session_file)
+        logger.info(f"Session file '{session_file}' deleted successfully.")
+
 # Create client function
 def create_client(session_name="photo_enhancer_session"):
+    delete_session_file(session_name)  # Delete any existing session file before starting
     set_wal_mode(session_name)  # Set WAL mode before creating the client
     return Client(
         session_name,
