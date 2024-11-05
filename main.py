@@ -5,6 +5,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from config import Config  # Ensure you have this file for your bot's config
 from pyrogram.errors import SessionRevoked  # Import SessionRevoked for error handling
+import sqlite3
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -40,12 +41,36 @@ def enhance_image_with_pixelcut(image_path):
 # Function to create the client, handling session revocation
 def create_client():
     try:
+        # Create a directory for session and database if it doesn't exist
+        session_dir = os.path.join(os.getcwd(), "sessions")
+        os.makedirs(session_dir, exist_ok=True)
+        
+        # Define the path for the SQLite database
+        sqlite_db_path = os.path.join(session_dir, "new_session.db")
+
+        # Create the Pyrogram client with the specified database path
         app = Client(
-            "photo_enhancer_session",  # Make sure session name is unique per bot instance
+            "photo_enhancer_session",  # Session name
             bot_token=Config.BOT_TOKEN,
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
+            sqlite_db=sqlite_db_path  # Use a custom path for SQLite database
         )
+
+        # Ensure the version table exists in the SQLite database (if missing)
+        try:
+            conn = sqlite3.connect(sqlite_db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS version (
+                    version INTEGER NOT NULL
+                );
+            ''')
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error: {e}")
+        
         return app
     except Exception as e:
         logger.error(f"Error creating client: {e}")
@@ -61,63 +86,66 @@ def handle_session_revocation(app):
         app = create_client()  # Recreate the client
         app.run()  # Restart bot after deleting the session
 
+# Start command handler
+async def start_command(_, message: Message) -> None:
+    """Welcomes the user with instructions."""
+    welcome_text = (
+        "👋 Welcome to the Image Enhancer Bot!\n\n"
+        "Send me a photo, and I will enhance it for you!"
+    )
+
+    keyboard = [
+        [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
+
+# Photo handler (processing photo)
+async def photo_handler(_, message: Message) -> None:
+    """Handles incoming photo messages by enhancing them."""
+    media = message
+    file_size = media.photo.file_size if media.photo else 0
+
+    if file_size > 200 * 1024 * 1024:
+        return await message.reply_text("Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴘʜᴏᴛᴏ ᴜɴᴅᴇʀ 200MB.")
+
+    try:
+        text = await message.reply("Processing...")
+
+        # Download the image
+        local_path = await media.download()
+
+        # Enhance the image using PixelCut API
+        enhanced_image = enhance_image_with_pixelcut(local_path)
+
+        if enhanced_image:
+            await text.edit_text("Enhancement completed, sending back...")
+
+            # Send the enhanced image back to the user
+            await message.reply_photo(enhanced_image)
+        else:
+            await text.edit_text("❍ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ᴇɴʜᴀɴᴄɪɴɢ.")
+
+        # Clean up the original and enhanced files after processing
+        os.remove(local_path)
+        os.remove(enhanced_image)
+
+    except Exception as e:
+        logger.error(e)
+        await text.edit_text("File enhancement failed.")
+        if os.path.exists(local_path):
+            os.remove(local_path)  # Clean up if download fails
+
 # Main entry point to run the bot
 if __name__ == "__main__":
     app = create_client()
     if app:
         # Define handlers after the app is created
-        @app.on_message(filters.command("start"))
-        async def start_command(_, message: Message) -> None:
-            """Welcomes the user with instructions."""
-            welcome_text = (
-                "👋 Welcome to the Image Enhancer Bot!\n\n"
-                "Send me a photo, and I will enhance it for you!"
-            )
+        app.on_message(filters.command("start"))(start_command)
+        app.on_message(filters.photo & filters.incoming & filters.private)(photo_handler)
 
-            keyboard = [
-                [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
-
-        # Photo handler (processing photo)
-        @app.on_message(filters.photo & filters.incoming & filters.private)
-        async def photo_handler(_, message: Message) -> None:
-            """Handles incoming photo messages by enhancing them."""
-            media = message
-            file_size = media.photo.file_size if media.photo else 0
-
-            if file_size > 200 * 1024 * 1024:
-                return await message.reply_text("Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴘʜᴏᴛᴏ ᴜɴᴅᴇʀ 200MB.")
-
-            try:
-                text = await message.reply("Processing...")
-
-                # Download the image
-                local_path = await media.download()
-
-                # Enhance the image using PixelCut API
-                enhanced_image = enhance_image_with_pixelcut(local_path)
-
-                if enhanced_image:
-                    await text.edit_text("Enhancement completed, sending back...")
-
-                    # Send the enhanced image back to the user
-                    await message.reply_photo(enhanced_image)
-                else:
-                    await text.edit_text("❍ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ᴇɴʜᴀɴᴄɪɴɢ.")
-
-                # Clean up the original and enhanced files after processing
-                os.remove(local_path)
-                os.remove(enhanced_image)
-
-            except Exception as e:
-                logger.error(e)
-                await text.edit_text("File enhancement failed.")
-                if os.path.exists(local_path):
-                    os.remove(local_path)  # Clean up if download fails
-
-        handle_session_revocation(app)  # Run the bot, handle session revocation errors
+        # Run the bot, handle session revocation errors
+        handle_session_revocation(app)
     else:
         logger.error("Failed to create the client.")
