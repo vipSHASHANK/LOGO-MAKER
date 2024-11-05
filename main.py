@@ -192,18 +192,13 @@ async def button_handler(_, callback_query: CallbackQuery):
 async def start(_, message: Message):
     await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
 
-# Handle Unauthorized errors (Session Revoked)
-@app.on_error
-async def handle_unauthorized_error(_, e):
-    logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked or the session expired.")
-    # Reset the session to allow the bot to re-authorize
-    try:
-        await app.stop()
-        await app.start()
-        logger.info("Bot session restarted successfully.")
-    except Exception as ex:
-        logger.error(f"Failed to restart bot: {str(ex)}")
-
-if __name__ == "__main__":
+# Global error handling using try-except for the main part
+try:
     app.run()
+except Unauthorized as e:
+    logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked.")
+except SessionRevoked as e:
+    logger.error(f"Session revoked: {str(e)}. The session has been invalidated.")
+except Exception as e:
+    logger.error(f"An unexpected error occurred: {str(e)}")
     
