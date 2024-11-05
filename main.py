@@ -150,3 +150,10 @@ async def photo_handler(_, message: Message) -> None:
             os.remove(local_path)  # अगर डाउनलोड में समस्या हो तो इमेज हटा दें
 
 if __name__ == "__main__":
+    try:
+        # बोट को चलाने के लिए नया क्लाइंट बनाएं और उसे रन करें
+        app.run()
+    except SessionRevoked:
+        logger.error("सत्र रद्द कर दिया गया है। कृपया बोट को फिर से शुरू करें।")
+    except Exception as e:
+        logger.error(f"कुछ गड़बड़ हो गई: {e}")
