@@ -3,39 +3,43 @@ import random
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from config import Config
-import pyfiglet  # Pyfiglet for stylish text generation
+import pyfiglet  # To generate simple stylish text
+import random  # For adding random symbols
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Stylish Symbols List (special characters and Unicode symbols)
+# Stylish Symbols List (random symbols to add around the text)
 stylish_symbols = [
     "❤", "❀", "✰", "☪", "☽", "☁", "⭐", "✿", "☘", "❖", "✧", "☠", "⚡", "✪", "⚔", "❣", "➸", "✦"
 ]
 
-# Function to convert text to stylish versions using `pyfiglet`
+# Function to convert text to stylish versions using pyfiglet and simple fonts
 def convert_to_stylish_text(input_text):
     """Text ko stylish formats mein convert kare."""
     
-    # Check if the input text contains any invalid characters (non-alphabetic)
+    # Simple check for valid characters (letters and spaces)
     if not input_text.replace(" ", "").isalnum():
         return "Kripya sirf text daalein, special characters nahi."
 
     stylish_versions = []
-
-    # 1. Use pyfiglet for ASCII-style fonts (smaller and readable)
-    try:
-        figlet_version = pyfiglet.figlet_format(input_text, font="slant")  # Use a simple and compact font
-        stylish_versions.append(figlet_version)
-    except Exception as e:
-        logger.error(f"Error in pyfiglet: {e}")
-
-    # 2. Add random stylish symbols around the text
-    symbol = random.choice(stylish_symbols)
-    stylish_versions_with_symbols = [f"{symbol} {version} {symbol}" for version in stylish_versions]
-
-    return stylish_versions_with_symbols
+    
+    # Create 10 different stylish text versions
+    for _ in range(10):
+        # Randomize the font style using pyfiglet
+        try:
+            figlet_version = pyfiglet.figlet_format(input_text, font="slant")  # Using slant font for readability
+            stylish_versions.append(figlet_version.strip())
+        except Exception as e:
+            logger.error(f"Error in pyfiglet: {e}")
+        
+        # Add stylish symbols around the text for decoration
+        symbol = random.choice(stylish_symbols)
+        stylish_versions_with_symbols = f"{symbol} {input_text} {symbol}"
+        stylish_versions.append(stylish_versions_with_symbols)
+    
+    return stylish_versions
 
 # Text handler (processing the user input text and generating stylish outputs)
 async def text_handler(_, message: Message) -> None:
