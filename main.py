@@ -19,7 +19,7 @@ app = Client(
 # Dictionary to store user data (for handling images and text)
 user_data = {}
 
-# Function to add refined glow effect to text
+# Function to add refined glow effect to text (using selected glow color)
 def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_strength=5):
     x, y = position
     # Draw glow around the text with limited strength for edges
@@ -48,8 +48,8 @@ def get_dynamic_font(image, text, max_width, max_height):
 
     return font, text_width, text_height
 
-# Function to add text to an image at a specified position
-def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, text_color="white"):
+# Function to add text to an image at a specified position with glow effect
+def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red"):
     try:
         user_image = Image.open(photo_path)
         user_image = user_image.convert("RGBA")  # Convert to RGBA for transparency
@@ -66,7 +66,7 @@ def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, siz
         text_position = (x, y)
 
         draw = ImageDraw.Draw(user_image)
-        add_refined_glow(draw, text_position, text, font, glow_color="red", text_color=text_color, glow_strength=10)
+        add_refined_glow(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
 
         user_image.save(output_path, "PNG")
         return output_path
@@ -113,7 +113,7 @@ async def text_handler(_, message: Message):
     result = add_text_to_image(photo_path, user_text, output_path)
 
     if result:
-        # Send the initial logo image to the user with position adjustment buttons
+        # Send the initial logo image to the user with position adjustment and glow color change buttons
         buttons = [
             [InlineKeyboardButton("⬅️ Left", callback_data="left"),
              InlineKeyboardButton("⬆️ Up", callback_data="up"),
@@ -121,10 +121,10 @@ async def text_handler(_, message: Message):
             [InlineKeyboardButton("⬇️ Down", callback_data="down"),
              InlineKeyboardButton("🔽 Smaller", callback_data="smaller"),
              InlineKeyboardButton("🔼 Bigger", callback_data="bigger")],
-            # Color change buttons
-            [InlineKeyboardButton("⚪ White Text", callback_data="color_white"),
-             InlineKeyboardButton("🔴 Red Text", callback_data="color_red"),
-             InlineKeyboardButton("🟢 Green Text", callback_data="color_green")]
+            # Glow color change buttons
+            [InlineKeyboardButton("🔴 Red Glow", callback_data="glow_red"),
+             InlineKeyboardButton("🟢 Green Glow", callback_data="glow_green"),
+             InlineKeyboardButton("🔵 Blue Glow", callback_data="glow_blue")]
         ]
         await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
 
@@ -132,10 +132,10 @@ async def text_handler(_, message: Message):
         user_data[user_id]['output_path'] = output_path
         user_data[user_id]['text_position'] = (0, 0)  # Default offset
         user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
-        user_data[user_id]['text_color'] = "white"  # Default color
+        user_data[user_id]['glow_color'] = "red"  # Default glow color
 
-# Handler for position adjustments and text color changes through buttons
-@app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|color_[a-z]+)$"))
+# Handler for position adjustments and glow color changes through buttons
+@app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
 async def button_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     if user_id not in user_data:
@@ -144,11 +144,11 @@ async def button_handler(_, callback_query: CallbackQuery):
     action = callback_query.data
     user_info = user_data[user_id]
     
-    # Extract current position, size multiplier, and text color
+    # Extract current position, size multiplier, and glow color
     x_offset, y_offset = user_info['text_position']
     size_multiplier = user_info['size_multiplier']
     text = user_info['text']  # Get the logo text
-    text_color = user_info['text_color']  # Get the selected text color
+    glow_color = user_info['glow_color']  # Get the selected glow color
 
     if action == "left":
         x_offset -= 10
@@ -162,25 +162,25 @@ async def button_handler(_, callback_query: CallbackQuery):
         size_multiplier = max(0.5, size_multiplier - 0.1)
     elif action == "bigger":
         size_multiplier = min(2, size_multiplier + 0.1)
-    # Handle color changes
-    elif action == "color_white":
-        text_color = "white"
-    elif action == "color_red":
-        text_color = "red"
-    elif action == "color_green":
-        text_color = "green"
+    # Handle glow color changes
+    elif action == "glow_red":
+        glow_color = "red"
+    elif action == "glow_green":
+        glow_color = "green"
+    elif action == "glow_blue":
+        glow_color = "blue"
 
-    # Update user data with new position, size, and color
+    # Update user data with new position, size, and glow color
     user_info['text_position'] = (x_offset, y_offset)
     user_info['size_multiplier'] = size_multiplier
-    user_info['text_color'] = text_color
+    user_info['glow_color'] = glow_color
 
     # Get the photo path and re-create the logo with new adjustments
     photo_path = user_info['photo_path']
     output_path = f"logos/updated_{text}_logo.png"
 
-    # Regenerate the logo with the new position, size, and color
-    add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, text_color)
+    # Regenerate the logo with the new position, size, and glow color
+    add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, glow_color)
 
     # Create InputMediaPhoto object
     media = InputMediaPhoto(media=output_path, caption="")
@@ -212,4 +212,4 @@ async def start_command(_, message: Message):
 # Main entry point to run the bot
 if __name__ == "__main__":
     app.run()
-    
+        
