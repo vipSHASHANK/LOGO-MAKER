@@ -3,6 +3,7 @@ import os
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+import random  # <-- Add this line to import random module
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from config import Config
@@ -26,7 +27,7 @@ def add_glow(draw, position, text, font, glow_color, text_color, glow_strength=1
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
     draw.text(position, text, font=font, fill=text_color)
 
-# Function to detect logo placement area using OpenCV (contour detection)
+# Function to detect logo position using OpenCV (contour detection)
 def detect_logo_position(image_path):
     # Read the image
     image = cv2.imread(image_path)
