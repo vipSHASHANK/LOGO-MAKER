@@ -41,36 +41,19 @@ def enhance_image_with_pixelcut(image_path):
 # Function to create the client, handling session revocation
 def create_client():
     try:
-        # Create a directory for session and database if it doesn't exist
-        session_dir = os.path.join(os.getcwd(), "sessions")
-        os.makedirs(session_dir, exist_ok=True)
-        
-        # Define the path for the SQLite database
-        sqlite_db_path = os.path.join(session_dir, "new_session.db")
+        # Create a session file for Pyrogram (delete the old one if necessary)
+        session_file = "photo_enhancer_session.session"
+        if os.path.exists(session_file):
+            logger.info(f"Deleting the old session file: {session_file}")
+            os.remove(session_file)  # Delete old session file
 
-        # Create the Pyrogram client with the specified database path
+        # Create the Pyrogram client
         app = Client(
             "photo_enhancer_session",  # Session name
             bot_token=Config.BOT_TOKEN,
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
-            sqlite_db=sqlite_db_path  # Use a custom path for SQLite database
         )
-
-        # Ensure the version table exists in the SQLite database (if missing)
-        try:
-            conn = sqlite3.connect(sqlite_db_path)
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS version (
-                    version INTEGER NOT NULL
-                );
-            ''')
-            conn.commit()
-            conn.close()
-        except sqlite3.Error as e:
-            logger.error(f"SQLite error: {e}")
-        
         return app
     except Exception as e:
         logger.error(f"Error creating client: {e}")
