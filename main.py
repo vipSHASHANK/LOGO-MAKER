@@ -3,25 +3,26 @@ import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from pyrogram.storage import MemoryStorage  # सही से आयात करें
 from config import Config
-from private_buttons import create_font_buttons, create_position_buttons, create_size_buttons, create_color_buttons  # बटन आयात करें
+from private_buttons import create_font_buttons, create_position_buttons, create_size_buttons, create_color_buttons
 
 # लॉगिंग सेटअप
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# इन-मेमोरी यूज़र डेटा स्टोर (अगर आपको डाटाबेस की जरूरत हो तो इसका उपयोग कर सकते हैं)
+# इन-मेमोरी यूज़र डेटा स्टोर
 user_data_store = {}
 
-# बॉट सेटअप (MemoryStorage का उपयोग किया गया है ताकि SQLite के लॉकिंग समस्याएं न हों)
-from pyrogram.storage import MemoryStorage
+# बॉट सेटअप
+storage = MemoryStorage()  # स्टोरेज को अलग से सेट करें
 
 app = Client(
     "logo_creator_bot",  # यूनिक सत्र नाम
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
-    storage=MemoryStorage("logo_creator_memory")  # यहां सत्र का नाम पास किया गया है
+    storage=storage  # स्टोरेज को क्लाइंट में पास करें
 )
 
 # फ़ॉन्ट विकल्प (अपने फ़ॉन्ट्स का पथ)
@@ -48,42 +49,38 @@ def get_dynamic_font(image, text, max_width, max_height, font_path=None):
 
     return font, text_width, text_height
 
-# 3D टेक्स्ट इफेक्ट जोड़ने का फ़ंक्शन (शैडो और ग्लो के साथ)
+# 3D टेक्स्ट इफेक्ट जोड़ने का फ़ंक्शन
 def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offset=(5, 5), glow_strength=5):
     x, y = position
     
-    # शैडो: मूल स्थिति से थोड़ा ऑफसेट में शैडो बनाएं
+    # शैडो
     shadow_x = x + shadow_offset[0]
     shadow_y = y + shadow_offset[1]
-    
-    # शैडो को काले रंग में ड्रा करें
     draw.text((shadow_x, shadow_y), text, font=font, fill="black")
 
-    # ग्लो प्रभाव (आसपास की हल्की रोशनी)
+    # ग्लो प्रभाव
     for offset in range(1, glow_strength + 1):
         draw.text((x - offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x - offset, y + offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
 
-    # मुख्य टेक्स्ट: शैडो और ग्लो के ऊपर मुख्य टेक्स्ट को ड्रा करें
+    # मुख्य टेक्स्ट
     draw.text((x, y), text, font=font, fill=text_color)
 
 # चित्र पर टेक्स्ट जोड़ने का फ़ंक्शन
 async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red", font_path=None):
     try:
-        # चित्र फ़ाइल को खोलें
         user_image = Image.open(photo_path)
-        user_image = user_image.convert("RGBA")  # चित्र को RGBA मोड में बदलें ताकि पारदर्शिता का समर्थन हो सके
+        user_image = user_image.convert("RGBA")  # RGBA मोड में बदलें
 
         max_width, max_height = user_image.size
         font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height, font_path)
 
-        # टेक्स्ट का आकार समायोजित करें
+        # टेक्स्ट आकार समायोजित करें
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
 
-        # टेक्स्ट की स्थिति को केंद्रित करने के लिए गणना करें
         x = (max_width - text_width) // 2 + x_offset
         y = (max_height - text_height) // 2 + y_offset
         text_position = (x, y)
@@ -91,37 +88,33 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         draw = ImageDraw.Draw(user_image)
         add_3d_text(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
 
-        # अंतिम चित्र को सहेजें
         user_image.save(output_path, "PNG")
         return output_path
     except Exception as e:
         logger.error(f"चित्र में टेक्स्ट जोड़ने में त्रुटि: {e}")
         return None
 
-# जब कोई यूज़र फ़ोटो भेजे, तो उसे हैंडल करने का फ़ंक्शन
+# फोटो हैंडलर
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message):
     if message.photo:
-        # यूज़र की फोटो को लोकली सेव करें
         photo_path = f"user_photos/{message.photo.file_id}.jpg"
-        await message.download(photo_path)  # फोटो को निर्दिष्ट पथ पर डाउनलोड करें
+        await message.download(photo_path)
 
-        # यूज़र डेटा (फोटो पथ, टेक्स्ट, और सेटिंग्स) सेव करें
         await save_user_data(message.from_user.id, {'photo_path': photo_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
 
         await message.reply_text("अब अपना लोगो टेक्स्ट भेजें।")
 
-# यूज़र डेटा को सेव करने का फ़ंक्शन
+# यूज़र डेटा सेव करने का फ़ंक्शन
 async def save_user_data(user_id, data):
-    # यहां हम इन-मेमोरी डिक्शनरी का उपयोग कर रहे हैं
     user_data_store[user_id] = data
     logger.info(f"यूज़र {user_id} का डेटा सेव किया गया: {data}")
 
-# यूज़र डेटा को प्राप्त करने का फ़ंक्शन
+# यूज़र डेटा प्राप्त करने का फ़ंक्शन
 async def get_user_data(user_id):
     return user_data_store.get(user_id, None)
 
-# जब कोई यूज़र टेक्स्ट भेजे, तो उसे हैंडल करने का फ़ंक्शन
+# टेक्स्ट हैंडलर
 @app.on_message(filters.text & filters.private)
 async def text_handler(_, message: Message):
     user_id = message.from_user.id
@@ -137,11 +130,9 @@ async def text_handler(_, message: Message):
         await message.reply_text("लोगो टेक्स्ट देना होगा।")
         return
 
-    # टेक्स्ट को यूज़र डेटा में सेव करें
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
 
-    # फ़ॉन्ट चयन बटन भेजें
     font_buttons = create_font_buttons()
     await message.reply_text(
         "अपना फ़ॉन्ट चुनें:", 
@@ -162,13 +153,11 @@ async def font_handler(_, message: Message):
     selected_font = next((font for font in FONT_OPTIONS if font['name'].lower() == font_choice.lower()), None)
 
     if selected_font:
-        # चयनित फ़ॉन्ट को यूज़र डेटा में सेव करें
         user_data['font'] = selected_font
         await save_user_data(user_id, user_data)
 
         await message.reply_text(f"आपने फ़ॉन्ट '{selected_font['name']}' को चुना है।")
 
-        # टेक्स्ट रंग का चयन पूछें
         color_buttons = create_color_buttons()
         await message.reply_text("अपना लोगो टेक्स्ट का रंग बताएं:", reply_markup=InlineKeyboardMarkup(color_buttons))
 
@@ -188,7 +177,6 @@ async def color_handler(_, message: Message):
 
     await message.reply_text(f"आपने रंग '{user_color}' को चुना है।")
 
-    # अब स्थिति बटन दिखाएं
     position_buttons = create_position_buttons()
     await message.reply_text("अपना लोगो स्थिति चुनें:", reply_markup=InlineKeyboardMarkup(position_buttons))
 
@@ -208,7 +196,6 @@ async def position_handler(_, message: Message):
 
     await message.reply_text(f"स्थिति '{position}' चुनी गई है।")
 
-    # अब आकार बटन दिखाएं
     size_buttons = create_size_buttons()
     await message.reply_text("अपना लोगो आकार चुनें:", reply_markup=InlineKeyboardMarkup(size_buttons))
 
@@ -227,7 +214,6 @@ async def size_handler(_, message: Message):
     user_data['size_multiplier'] = size_multiplier
     await save_user_data(user_id, user_data)
 
-    # अंतिम सेटिंग्स के साथ लोगो उत्पन्न करें
     photo_path = user_data['photo_path']
     text = user_data['text']
     output_path = f"user_photos/output_{user_id}.png"
@@ -237,10 +223,7 @@ async def size_handler(_, message: Message):
     )
 
     if added_text_image:
-        await message.reply_photo(
-            added_text_image,
-            caption="यह रहा आपका लोगो!"
-        )
+        await message.reply_photo(added_text_image, caption="यह रहा आपका लोगो!")
     else:
         await message.reply_text("लोगो बनाते समय कुछ गलत हो गया।")
 
@@ -251,4 +234,4 @@ async def start(_, message: Message):
 
 if __name__ == "__main__":
     app.run()
-                
+    
