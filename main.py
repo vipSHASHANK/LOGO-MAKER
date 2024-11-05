@@ -1,6 +1,6 @@
 import logging
 import os
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import random
 from pyrogram import Client, filters
 from pyrogram.types import Message
@@ -9,9 +9,6 @@ from config import Config
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Path to the background image
-background_image_path = "backgrounds/istockphoto-529329091-612x612.jpg"  # Replace with the path to your wood texture image
 
 # List of available fonts (TTF fonts)
 fonts = [
@@ -28,59 +25,74 @@ def add_glow(draw, position, text, font, glow_color, text_color, glow_strength=1
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
     draw.text(position, text, font=font, fill=text_color)
 
-# Function to generate logo
-def generate_stylish_logo(text, output_path):
+# Function to add text to user photo
+def add_text_to_image(photo_path, text, output_path):
     try:
-        # Load the background image
-        background = Image.open(background_image_path)
-        width, height = background.size
+        # Load the user's photo
+        user_image = Image.open(photo_path)
+        user_image = user_image.convert("RGBA")  # Convert to RGBA for transparency
 
         # Create an ImageDraw object
-        draw = ImageDraw.Draw(background)
+        draw = ImageDraw.Draw(user_image)
 
         # Select random font
-        font = ImageFont.truetype(random.choice(fonts), 250)  # Adjust size as needed
+        font = ImageFont.truetype(random.choice(fonts), 100)  # Adjust font size as needed
 
-        # Text size and position
+        # Calculate text size and position
         text_width, text_height = draw.textsize(text, font=font)
-        position = ((width - text_width) // 2, (height - text_height) // 2)
+        position = ((user_image.width - text_width) // 2, (user_image.height - text_height) // 2)
 
-        # Add glow effect
+        # Add glow effect to text
         add_glow(draw, position, text, font, glow_color="red", text_color="white", glow_strength=15)
 
-        # Save the image
-        background.save(output_path, quality=95)
+        # Save the final image with transparent background where necessary
+        user_image.save(output_path, "PNG")
         return output_path
     except Exception as e:
-        logger.error(f"Error generating logo: {e}")
+        logger.error(f"Error adding text to image: {e}")
         return None
 
-# Function to generate 1 logo for simplicity
-def generate_logo(user_text):
-    output_dir = "logos"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+# Handler for when a user sends a photo
+async def photo_handler(_, message: Message):
+    if message.photo:
+        # Save the received photo
+        photo_path = f"user_photos/{message.photo.file_id}.jpg"
+        await message.download(photo_path)
 
-    image_path = os.path.join(output_dir, f"{user_text}_logo.png")
-    result = generate_stylish_logo(user_text, image_path)
-    return image_path if result else None
+        # Ask the user to send the logo text
+        await message.reply_text("Ab apna logo text bheje.")
 
-# Text handler (receive user's text and generate stylish logo)
-async def text_handler(_, message: Message) -> None:
-    """Receive user text and generate stylish logo image."""
+        # Store the user's photo path and wait for text
+        # (This can be done using a state management system like a dictionary or database)
+        user_data[message.from_user.id] = {'photo_path': photo_path}
+
+# Handler for receiving text and adding it to the photo
+async def text_handler(_, message: Message):
+    user_id = message.from_user.id
+    if user_id not in user_data:
+        await message.reply_text("Pehle apna photo bheje.")
+        return
+
     if message.text:
         user_text = message.text.strip()
 
         if not user_text:
-            await message.reply_text("Please provide some text to style.")
+            await message.reply_text("Logo text dena hoga.")
             return
-        
-        # Generate a stylish logo image
-        image_path = generate_logo(user_text)
 
-        # Send image to the user
-        if image_path:
-            await message.reply_photo(image_path)
+        # Get the user's photo path
+        photo_path = user_data[user_id]['photo_path']
+        output_path = f"logos/{user_text}_logo.png"
+
+        # Add the logo text to the photo
+        result = add_text_to_image(photo_path, user_text, output_path)
+
+        if result:
+            # Send the updated photo to the user
+            await message.reply_photo(output_path)
+
+            # Optionally clear the user data after use
+            del user_data[user_id]
 
 # Main entry point to run the bot
 if __name__ == "__main__":
@@ -91,8 +103,12 @@ if __name__ == "__main__":
         api_hash=Config.API_HASH,
     )
 
+    # Dictionary to store user data (photo and logo text)
+    user_data = {}
+
     if app:
         # Handlers define karte hain
+        app.on_message(filters.photo & filters.private)(photo_handler)
         app.on_message(filters.text & filters.private)(text_handler)
 
         # Bot ko run karte hain
