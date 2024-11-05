@@ -105,7 +105,7 @@ async def photo_handler(_, message: Message) -> None:
             os.remove(local_path)  # Clean up if download fails
 
 # Function to handle session revocation errors and recreate session
-def handle_session_revocation():
+def handle_session_revocation(app):
     try:
         app.run()
     except SessionRevoked:
@@ -118,6 +118,6 @@ def handle_session_revocation():
 if __name__ == "__main__":
     app = create_client()
     if app:
-        handle_session_revocation()  # Run the bot, handle session revocation errors
+        handle_session_revocation(app)  # Run the bot, handle session revocation errors
     else:
         logger.error("Failed to create the client.")
