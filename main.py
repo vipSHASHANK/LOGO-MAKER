@@ -82,6 +82,9 @@ def apply_opencv_enhancements(image_path):
     return enhanced_image_path
 
 
+# अब बोट को चलाने के लिए क्लाइंट को डिफाइन करें
+app = create_client("photo_enhancer_session")
+
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     """यूज़र को वेलकम करें और निर्देश दें।"""
@@ -134,8 +137,7 @@ async def photo_handler(_, message: Message) -> None:
 
 if __name__ == "__main__":
     try:
-        # बोट को चलाने के लिए नया क्लाइंट बनाएं
-        app = create_client("photo_enhancer_session")
+        # बोट को चलाने के लिए नया क्लाइंट बनाएं और उसे रन करें
         app.run()
     except SessionRevoked:
         logger.error("सत्र रद्द कर दिया गया है। कृपया बोट को फिर से शुरू करें।")
