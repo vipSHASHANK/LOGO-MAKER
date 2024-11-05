@@ -170,14 +170,16 @@ async def font_button_handler(_, callback_query: CallbackQuery):
             await callback_query.answer(f"Font changed to {selected_font_name}")
 
 # Error Handling (Generic Exception Handler)
-@app.on_error
-async def handle_error(_, e):
-    logger.error(f"An error occurred: {str(e)}")
-    if "401 SESSION_REVOKED" in str(e):
-        logger.error("Session was revoked, restarting bot.")
-        app.stop()  # Stop the current session
-        start_bot()  # Restart the bot
+@app.on_message(filters.private)
+async def generic_error_handler(_, message: Message):
+    try:
+        # Your regular handler logic here
+        pass
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        await message.reply_text(f"An error occurred: {str(e)}")
 
+# Start the bot
 if __name__ == "__main__":
     start_bot()  # Run bot with retry logic
                        
