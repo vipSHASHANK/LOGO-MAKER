@@ -31,7 +31,6 @@ def create_client(session_name="photo_enhancer_session"):
         bot_token=Config.BOT_TOKEN,
         api_id=Config.API_ID,
         api_hash=Config.API_HASH,
-        timeout=30  # Increase the timeout to avoid "database is locked" errors
     )
 
 # Function to enhance image (without color adjustment)
