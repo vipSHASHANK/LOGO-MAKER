@@ -7,18 +7,31 @@ from pyrogram.types import Message
 from PIL import Image, ImageEnhance, ImageFilter
 from config import Config  # Ensure you have this file for your bot's config
 from pyrogram.errors import SessionRevoked
+import sqlite3
 
 # Logging Setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Function to set WAL mode for SQLite (to avoid database locked errors)
+def set_wal_mode(session_name="photo_enhancer_session"):
+    try:
+        connection = sqlite3.connect(f"{session_name}.session")  # Using session file name
+        connection.execute("PRAGMA journal_mode=WAL;")
+        connection.close()
+        logger.info("WAL mode enabled for SQLite.")
+    except Exception as e:
+        logger.error(f"Failed to set WAL mode: {e}")
+
 # Create client function
-def create_client(session_name):
+def create_client(session_name="photo_enhancer_session"):
+    set_wal_mode(session_name)  # Set WAL mode before creating the client
     return Client(
         session_name,
         bot_token=Config.BOT_TOKEN,
         api_id=Config.API_ID,
         api_hash=Config.API_HASH,
+        timeout=30  # Increase the timeout to avoid "database is locked" errors
     )
 
 # Function to enhance image (without color adjustment)
