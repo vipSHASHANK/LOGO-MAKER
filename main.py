@@ -3,8 +3,8 @@ import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
-from config import Config  # Ensure you have this file for your bot's config
-from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons
+from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons from your custom module
+from config import Config  # Ensure your config file contains the correct API keys and token
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -12,13 +12,14 @@ logger = logging.getLogger(__name__)
 
 # Pyrogram Bot Setup
 app = Client(
-    "logo_creator_bot",
+    "logo_creator_bot",  # Session name (use different name if needed)
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
+    workers=2  # Increase workers to handle multiple requests
 )
 
-# Font options (fonts stored here)
+# Font options (you can update these paths as required)
 FONT_OPTIONS = [
     {"name": "FIGHTBACK", "path": "fonts/FIGHTBACK.ttf"},
     {"name": "Arial", "path": "fonts/Lobster-Regular.ttf"},
@@ -89,99 +90,73 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Initialize bot
-@app.on_message(filters.command("start"))
-async def start_command(_, message: Message) -> None:
-    """Welcomes the user with instructions."""
-    welcome_text = (
-        "👋 Welcome to the Logo Creator Bot!\n\n"
-        "With this bot, you can create custom logos by sending a photo and adding text to it.\n"
-        "Send a photo to get started."
-    )
-
-    keyboard = [
-        [InlineKeyboardButton("Join 👋", url="https://t.me/Your_Channel_Link")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
-
-# Handler for receiving photo
+# Handler for when a user sends a photo
 @app.on_message(filters.photo & filters.private)
-async def photo_handler(_, message: Message) -> None:
-    """Handles incoming photo messages by saving it for logo creation."""
+async def photo_handler(_, message: Message):
     if message.photo:
         photo_path = f"user_photos/{message.photo.file_id}.jpg"
         await message.download(photo_path)
-
-        # Save initial user data in memory or a database (if necessary)
-        # Just saving the photo path in this case for simplicity
-        user_data = {"photo_path": photo_path, "text": "", "text_position": (0, 0), "size_multiplier": 1, "glow_color": "red"}
         
-        await message.reply_text("Now send the text you want on the logo.")
+        # Inform the user
+        await message.reply_text("Ab apna logo text bheje.")
 
 # Handler for receiving logo text after photo
 @app.on_message(filters.text & filters.private)
-async def text_handler(_, message: Message) -> None:
-    """Handles text input for the logo."""
+async def text_handler(_, message: Message):
+    user_id = message.from_user.id
     user_text = message.text.strip()
 
     if not user_text:
-        await message.reply_text("Please send the text you want to add to the logo.")
+        await message.reply_text("Logo text dena hoga.")
         return
 
-    user_data = {"text": user_text}
-
-    # Send font selection buttons from private_buttons
+    # Send font selection buttons
     font_buttons = create_font_buttons()
-
     await message.reply_text(
-        "Choose your font:", 
-        reply_markup=InlineKeyboardMarkup(font_buttons)
+        "Apna font choose karein:", 
+        reply_markup=InlineKeyboardMarkup([font_buttons])
     )
 
 # Handler for font selection
 @app.on_callback_query(filters.regex("^font_"))
 async def font_button_handler(_, callback_query: CallbackQuery):
-    """Handles the selection of font for the logo."""
+    user_id = callback_query.from_user.id
     selected_font_name = callback_query.data.split("_")[1]
     selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
 
     if selected_font:
-        user_data = {"selected_font": selected_font['path']}
-
-        # Generate logo with selected font
-        photo_path = user_data["photo_path"]
-        user_text = user_data["text"]
+        font_path = selected_font['path']
+        
+        # Assume photo_path and user_text are already saved in user data
+        photo_path = "path_to_user_photo"  # Replace with actual user photo path
+        user_text = "Logo Text"  # Replace with actual user text
         output_path = f"logos/{user_text}_logo.png"
         
-        result = await add_text_to_image(photo_path, user_text, output_path, font_path=selected_font['path'])
+        result = await add_text_to_image(photo_path, user_text, output_path, font_path=font_path)
 
         if result:
-            media = InputMediaPhoto(media=output_path, caption="")
-            await callback_query.message.edit_media(media=media)
-            await callback_query.answer(f"Font changed to {selected_font_name}")
-
-            # Send position, size, and glow color adjustment buttons
             await callback_query.message.edit_text(
-                "Now, adjust the position, size, and glow color for your logo.",
+                "Font selected! Ab apni logo ka position, size aur glow color change karein.",
                 reply_markup=InlineKeyboardMarkup([
                     *POSITION_SIZE_BUTTONS,
                     *GLOW_COLOR_BUTTONS
                 ])
             )
+            media = InputMediaPhoto(media=output_path, caption="")
+            await callback_query.message.edit_media(media=media)
+            await callback_query.answer(f"Font changed to {selected_font_name}")
 
 # Handler for position adjustments, size changes, and glow color changes
 @app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
 async def button_handler(_, callback_query: CallbackQuery):
-    """Handles position, size, and glow adjustments."""
-    user_data = {"text_position": (0, 0), "size_multiplier": 1, "glow_color": "red"}
+    user_id = callback_query.from_user.id
     action = callback_query.data
-    x_offset, y_offset = user_data['text_position']
-    size_multiplier = user_data['size_multiplier']
-    text = user_data['text']
-    glow_color = user_data['glow_color']
-    font_path = user_data['selected_font']
+    
+    # Assuming some default values for user_data
+    x_offset, y_offset = 0, 0
+    size_multiplier = 1
+    glow_color = "red"
+    font_path = "path_to_selected_font"  # Replace with actual font path
 
     # Adjust position, size, and glow color based on action
     if action == "left":
@@ -203,20 +178,30 @@ async def button_handler(_, callback_query: CallbackQuery):
     elif action == "glow_blue":
         glow_color = "blue"
 
-    # Update user data with new position, size, and glow color
-    user_data['text_position'] = (x_offset, y_offset)
-    user_data['size_multiplier'] = size_multiplier
-    user_data['glow_color'] = glow_color
+    # Regenerate the logo with updated settings
+    photo_path = "path_to_user_photo"  # Replace with actual user photo path
+    output_path = f"logos/{user_text}_logo.png"
 
-    # Regenerate the logo with new adjustments
-    output_path = await add_text_to_image(user_data['photo_path'], text, f"logos/{text}_logo.png", x_offset, y_offset, size_multiplier, glow_color, font_path)
+    result = await add_text_to_image(photo_path, user_text, output_path, x_offset, y_offset, size_multiplier, glow_color, font_path)
 
-    if output_path:
-        media = InputMediaPhoto(media=output_path, caption="Here is your updated logo!")
+    if result:
+        media = InputMediaPhoto(media=output_path, caption="")
         await callback_query.message.edit_media(media=media)
-        await callback_query.answer(f"Logo updated with {action}.")
+        await callback_query.answer(f"Logo updated with {action}")
 
-# Start the bot
+# Start command handler
+@app.on_message(filters.command("start") & filters.private)
+async def start(_, message: Message):
+    await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
+
+# Handle Unauthorized errors (Session Revoked)
+@app.on_error(Exception)
+async def handle_unauthorized_error(_, e):
+    logger.error(f"Error: {str(e)}")
+    await app.stop()
+    await app.start()
+    logger.info("Bot session restarted successfully.")
+
 if __name__ == "__main__":
     app.run()
     
