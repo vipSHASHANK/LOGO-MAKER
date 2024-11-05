@@ -1,10 +1,8 @@
 import os
 import logging
-import cv2
-import numpy as np
+import requests
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from PIL import Image, ImageEnhance, ImageFilter
 from config import Config  # Ensure you have this file for your bot's config
 from pyrogram.errors import SessionRevoked
 import sqlite3
@@ -12,6 +10,10 @@ import sqlite3
 # Logging Setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# PixelCut API setup
+PIXELCUT_API_KEY = "sk_43374ec592354e4295b023151243efa4"
+PIXELCUT_API_URL = "https://api.pixelcut.ai/v1/enhance"  # Assuming this is the correct endpoint, check PixelCut API docs
 
 # Function to set WAL mode for SQLite (to avoid database locked errors)
 def set_wal_mode(session_name="photo_enhancer_session"):
@@ -33,60 +35,30 @@ def create_client(session_name="photo_enhancer_session"):
         api_hash=Config.API_HASH,
     )
 
-# Function to enhance image (without color adjustment)
-def enhance_image(input_image_path, output_image_path):
+# Function to enhance image using PixelCut API
+def enhance_image_with_pixelcut(image_path):
     try:
-        # Open image using Pillow
-        img = Image.open(input_image_path)
+        # Read the image file
+        with open(image_path, "rb") as img_file:
+            files = {"file": img_file}
+            headers = {"Authorization": f"Bearer {PIXELCUT_API_KEY}"}
 
-        # 1. Adjust Contrast (mild enhancement)
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.2)  # Slight contrast enhancement
+            # Make the request to the PixelCut API
+            response = requests.post(PIXELCUT_API_URL, files=files, headers=headers)
 
-        # 2. Adjust Brightness (mild enhancement)
-        enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.1)  # Slight brightness enhancement
-
-        # 3. Enhance Sharpness (moderate sharpness)
-        enhancer = ImageEnhance.Sharpness(img)
-        img = enhancer.enhance(1.5)  # Moderate sharpness enhancement
-
-        # 4. Apply Gaussian Blur (for smoothness)
-        img = img.filter(ImageFilter.GaussianBlur(radius=0.5))  # Lighter blur to avoid over-smoothing
-
-        # Save the image
-        img.save(output_image_path)
-
-        # Apply denoising using OpenCV for better quality
-        return apply_opencv_enhancements(output_image_path)
-    
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Save the enhanced image
+                enhanced_image_path = "enhanced_" + os.path.basename(image_path)
+                with open(enhanced_image_path, "wb") as out_file:
+                    out_file.write(response.content)
+                return enhanced_image_path
+            else:
+                logger.error(f"Error from PixelCut API: {response.text}")
+                return None
     except Exception as e:
-        logger.error(f"Error enhancing image: {str(e)}")
+        logger.error(f"Error enhancing image with PixelCut: {e}")
         return None
-
-def apply_opencv_enhancements(image_path):
-    """Apply denoising, contrast stretching, and sharpening."""
-    image = cv2.imread(image_path)
-
-    # 1. Denoising (reduce noise)
-    denoised_image = cv2.fastNlMeansDenoisingColored(image, None, 15, 15, 7, 21)  # Moderate denoising
-
-    # 2. Contrast Stretching (Auto-adjust contrast)
-    lab = cv2.cvtColor(denoised_image, cv2.COLOR_BGR2Lab)
-    l, a, b = cv2.split(lab)
-    l = cv2.equalizeHist(l)  # Apply histogram equalization to the L channel (luminance)
-    lab = cv2.merge((l, a, b))
-    contrast_stretched_image = cv2.cvtColor(lab, cv2.COLOR_Lab2BGR)
-
-    # 3. Edge Sharpening (Moderate sharpening)
-    kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])  # Sharpening kernel
-    sharpened_image = cv2.filter2D(contrast_stretched_image, -1, kernel)
-
-    # Save final enhanced image
-    enhanced_image_path = "enhanced_" + os.path.basename(image_path)
-    cv2.imwrite(enhanced_image_path, sharpened_image)
-
-    return enhanced_image_path
 
 # Create a client for the bot
 app = create_client("photo_enhancer_session")
@@ -102,7 +74,7 @@ async def start_command(_, message: Message) -> None:
 
 @app.on_message(filters.photo & filters.incoming & filters.private)
 async def photo_handler(_, message: Message) -> None:
-    """Handle incoming photo messages, enhance them, and send back."""
+    """Handle incoming photo messages, enhance them using PixelCut, and send back."""
     media = message
     file_size = media.photo.file_size if media.photo else 0
 
@@ -117,11 +89,8 @@ async def photo_handler(_, message: Message) -> None:
         # Download the image
         local_path = await media.download()
 
-        # Define the path for the enhanced image
-        enhanced_image_path = "enhanced_" + os.path.basename(local_path)
-
-        # Enhance the image using Pillow and OpenCV
-        enhanced_image = enhance_image(local_path, enhanced_image_path)
+        # Enhance the image using PixelCut API
+        enhanced_image = enhance_image_with_pixelcut(local_path)
 
         if enhanced_image:
             await text.edit_text("Sending enhanced image...")
@@ -132,7 +101,7 @@ async def photo_handler(_, message: Message) -> None:
 
         # Clean up the original and enhanced files after processing
         os.remove(local_path)
-        os.remove(enhanced_image_path)
+        os.remove(enhanced_image)
 
     except Exception as e:
         logger.error(f"Error in photo_handler: {str(e)}")
