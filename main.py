@@ -2,7 +2,7 @@ import os
 import logging
 import requests
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from pyrogram.types import Message
 from config import Config  # Ensure you have this file for your bot's config
 
 # Set up logging
@@ -10,54 +10,52 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Client(
-    "catbox_uploader",
+    "remini_enhancer",
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
 )
 
-def upload_file(file_path):
-    url = "https://catbox.moe/user/api.php"
-    data = {"reqtype": "fileupload", "json": "true"}
-    
-    try:
-        with open(file_path, "rb") as file:
-            files = {"fileToUpload": file}
-            response = requests.post(url, data=data, files=files)
-        
-        logger.info("Response from Catbox: %s", response.text)
+# DeepAI Image Enhancement API URL
+DEEPAI_API_URL = "https://api.deepai.org/api/torch-srgan"  # URL for DeepAI's image enhancement API
+DEEPAI_API_KEY = 'your-deepai-api-key-here'  # Replace with your actual DeepAI API key
 
+# Function to enhance photo using DeepAI's API
+def enhance_with_deepai(file_path):
+    try:
+        # Open the image file to send to DeepAI's API
+        with open(file_path, 'rb') as image_file:
+            response = requests.post(
+                DEEPAI_API_URL,
+                files={'image': image_file},
+                headers={'api-key': DEEPAI_API_KEY}
+            )
+
+        # If the request is successful, return the enhanced image URL
         if response.status_code == 200:
-            try:
-                response_json = response.json()
-                return True, response_json.get("url", "")
-            except ValueError:
-                return True, response.text.strip()
+            result = response.json()
+            enhanced_image_url = result.get('output_url')
+            return enhanced_image_url
         else:
-            return False, f"Error: {response.status_code} - {response.text}"
+            logger.error(f"Error enhancing image: {response.text}")
+            return None
     except Exception as e:
-        return False, f"Exception occurred: {str(e)}"
+        logger.error(f"Error enhancing image: {str(e)}")
+        return None
 
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     """Welcomes the user with instructions."""
     welcome_text = (
-        "👋 Welcome to the Media Uploader Bot!\n\n"
-        "With this bot, you can:\n"
-        " • Upload photos: Just send a photo, and I'll upload it to Telegraph!\n"
-        " • Get a quick link: Receive a link immediately after uploading.\n"
+        "👋 Welcome to the Photo Enhancer Bot!\n\n"
+        "Just send me a photo, and I'll enhance it using AI and send it back to you!"
     )
 
-    keyboard = [
-        [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
+    await message.reply_text(welcome_text, disable_web_page_preview=True)
 
 @app.on_message(filters.photo & filters.incoming & filters.private)
 async def photo_handler(_, message: Message) -> None:
-    """Handles incoming photo messages by uploading to Catbox.moe."""
+    """Handles incoming photo messages, enhances them with DeepAI, and sends the enhanced photo back."""
     media = message
     file_size = media.photo.file_size if media.photo else 0
 
@@ -65,35 +63,28 @@ async def photo_handler(_, message: Message) -> None:
         return await message.reply_text("Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴘʜᴏᴛᴏ ᴜɴᴅᴇʀ 200MB.")
 
     try:
+        # Download the photo
         text = await message.reply("Processing...")
 
         local_path = await media.download()
-        await text.edit_text("Uploading 100%...")
 
-        success, upload_url = upload_file(local_path)
+        # Enhance the photo using DeepAI API
+        enhanced_image_url = enhance_with_deepai(local_path)
 
-        if success:
-            await text.edit_text(
-                f"❍ | [ʜᴏʟᴅ ᴛʜᴇ ʟɪɴᴋ]({upload_url})",
-                reply_markup=InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton(
-                                "❍ ᴄʀᴇᴀᴛᴇ ʙʏ ˹ ʙᴀʙʏ-ᴍᴜsɪᴄ ™˼𓅂",
-                                url=upload_url,
-                            )
-                        ]
-                    ]
-                ),
-            )
+        if enhanced_image_url:
+            await text.edit_text("Sending enhanced image...")
+
+            # Send the enhanced image URL back to the user
+            await message.reply_text(f"Your enhanced image: {enhanced_image_url}")
+
         else:
-            await text.edit_text("❍ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ᴜᴘʟᴏᴀᴅɪɴɢ.")
+            await text.edit_text("Error enhancing the image. Please try again later.")
 
-        os.remove(local_path)  # Clean up local file
+        os.remove(local_path)  # Clean up the original file after processing
 
     except Exception as e:
         logger.error(e)
-        await text.edit_text("File upload failed.")
+        await text.edit_text("Something went wrong. Please try again later.")
         if os.path.exists(local_path):
             os.remove(local_path)  # Clean up if download fails
 
