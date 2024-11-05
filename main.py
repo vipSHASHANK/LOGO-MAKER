@@ -3,8 +3,8 @@ import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
-from config import Config  # Ensure you have this file for your bot's config
-from private_buttons import create_font_buttons  # Button imports
+from config import Config
+from private_buttons import create_font_buttons, create_position_buttons, create_size_buttons, create_color_buttons  # Import buttons
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -166,14 +166,12 @@ async def font_handler(_, message: Message):
         await message.reply_text(f"Apne font '{selected_font['name']}' ko select kiya hai.")
 
         # Ask for text color
-        await message.reply_text("Apna logo text ka rang batao (Red, Green, Blue, etc.).")
+        color_buttons = create_color_buttons()
+        await message.reply_text("Apna logo text ka rang batao:", reply_markup=InlineKeyboardMarkup(color_buttons))
 
-    else:
-        await message.reply_text("Invalid font selection.")
-
-# Text color handler
-@app.on_message(filters.text & filters.private)
-async def text_color_handler(_, message: Message):
+# Color selection handler
+@app.on_message(filters.regex("color_") & filters.private)
+async def color_handler(_, message: Message):
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
 
@@ -181,36 +179,67 @@ async def text_color_handler(_, message: Message):
         await message.reply_text("Pehle apna photo bheje.")
         return
 
-    user_text_color = message.text.strip().lower()
+    user_color = message.text.strip().split('_')[1]
+    user_data['glow_color'] = user_color
+    await save_user_data(user_id, user_data)
 
-    # Define some standard colors (you can extend it)
-    valid_colors = ["red", "green", "blue", "yellow", "white", "black"]
-    
-    if user_text_color in valid_colors:
-        user_data['text_color'] = user_text_color
-        await save_user_data(user_id, user_data)
+    await message.reply_text(f"Apne color '{user_color}' ko select kiya hai.")
 
-        await message.reply_text(f"Apne text color '{user_text_color}' ko select kiya hai.")
+    # Now show position buttons
+    position_buttons = create_position_buttons()
+    await message.reply_text("Apna logo position select karein:", reply_markup=InlineKeyboardMarkup(position_buttons))
 
-        # Now create the logo
-        photo_path = user_data['photo_path']
-        text = user_data['text']
-        output_path = f"user_photos/output_{user_id}.png"
+# Position selection handler
+@app.on_message(filters.regex("position_") & filters.private)
+async def position_handler(_, message: Message):
+    user_id = message.from_user.id
+    user_data = await get_user_data(user_id)
 
-        # Add text to image
-        added_text_image = await add_text_to_image(
-            photo_path, text, output_path, size_multiplier=1, glow_color="yellow", font_path=user_data['font']['path']
+    if not user_data:
+        await message.reply_text("Pehle apna photo bheje.")
+        return
+
+    position = message.text.strip().split('_')[1]
+    user_data['position'] = position
+    await save_user_data(user_id, user_data)
+
+    await message.reply_text(f"Position '{position}' select kiya gaya hai.")
+
+    # Now show size buttons
+    size_buttons = create_size_buttons()
+    await message.reply_text("Apna logo size select karein:", reply_markup=InlineKeyboardMarkup(size_buttons))
+
+# Size selection handler
+@app.on_message(filters.regex("size_") & filters.private)
+async def size_handler(_, message: Message):
+    user_id = message.from_user.id
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
+        await message.reply_text("Pehle apna photo bheje.")
+        return
+
+    size = message.text.strip().split('_')[1]
+    size_multiplier = 1 if size == "small" else 1.5
+    user_data['size_multiplier'] = size_multiplier
+    await save_user_data(user_id, user_data)
+
+    # Generate logo with final settings
+    photo_path = user_data['photo_path']
+    text = user_data['text']
+    output_path = f"user_photos/output_{user_id}.png"
+
+    added_text_image = await add_text_to_image(
+        photo_path, text, output_path, size_multiplier=size_multiplier, glow_color=user_data['glow_color'], font_path=user_data['font']['path']
+    )
+
+    if added_text_image:
+        await message.reply_photo(
+            added_text_image,
+            caption="Yeh raha aapka logo!"
         )
-
-        if added_text_image:
-            await message.reply_photo(
-                added_text_image,
-                caption="Yeh raha aapka logo!"
-            )
-        else:
-            await message.reply_text("Logo banate waqt kuch galat ho gaya.")
     else:
-        await message.reply_text("Invalid color selected. Please choose from the valid colors (Red, Green, Blue, Yellow, White, Black).")
+        await message.reply_text("Logo banate waqt kuch galat ho gaya.")
 
 # Start command handler
 @app.on_message(filters.command("start") & filters.private)
