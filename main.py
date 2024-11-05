@@ -2,7 +2,7 @@ import os
 import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.errors import Unauthorized
+from pyrogram.errors import Unauthorized, SessionRevoked
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -125,8 +125,9 @@ async def photo_handler(_, message: Message):
             await save_user_data(message.from_user.id, {'photo_path': photo_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
 
             await message.reply_text("Ab apna logo text bheje.")
-    except Unauthorized as e:
-        logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked or the session expired.")
+    except SessionRevoked as e:
+        logger.error(f"Session revoked error: {str(e)}. Attempting to restart the bot.")
+        # Restart the bot if the session is revoked
         await app.stop()
         await app.start()
         logger.info("Bot session restarted successfully.")
@@ -161,8 +162,9 @@ async def text_handler(_, message: Message):
             "Apna font choose karein:", 
             reply_markup=InlineKeyboardMarkup([font_buttons])
         )
-    except Unauthorized as e:
-        logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked or the session expired.")
+    except SessionRevoked as e:
+        logger.error(f"Session revoked error: {str(e)}. Attempting to restart the bot.")
+        # Restart the bot if the session is revoked
         await app.stop()
         await app.start()
         logger.info("Bot session restarted successfully.")
@@ -204,19 +206,15 @@ async def font_button_handler(_, callback_query: CallbackQuery):
                 media = InputMediaPhoto(media=output_path, caption="")
                 await callback_query.message.edit_media(media=media)
                 await callback_query.answer(f"Font changed to {selected_font_name}")
-    except Unauthorized as e:
-        logger.error(f"Unauthorized error: {str(e)}. The bot token might have been revoked or the session expired.")
+    except SessionRevoked as e:
+        logger.error(f"Session revoked error: {str(e)}. Attempting to restart the bot.")
+        # Restart the bot if the session is revoked
         await app.stop()
         await app.start()
         logger.info("Bot session restarted successfully.")
     except Exception as e:
         logger.error(f"Error in font button handler: {e}")
         await callback_query.answer("An error occurred while processing your request.")
-
-# Start command handler
-@app.on_message(filters.command("start") & filters.private)
-async def start(_, message: Message):
-    await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
 
 # Start the bot
 if __name__ == "__main__":
