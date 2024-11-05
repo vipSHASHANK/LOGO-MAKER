@@ -1,7 +1,8 @@
 import logging
 import os
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-import random
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from config import Config
@@ -25,10 +26,44 @@ def add_glow(draw, position, text, font, glow_color, text_color, glow_strength=1
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
     draw.text(position, text, font=font, fill=text_color)
 
-# Function to add text to user photo
+# Function to detect logo placement area using OpenCV (contour detection)
+def detect_logo_position(image_path):
+    # Read the image
+    image = cv2.imread(image_path)
+
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Apply GaussianBlur to reduce noise and improve edge detection
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Detect edges using Canny edge detector
+    edges = cv2.Canny(blurred, 50, 150)
+
+    # Find contours in the edge-detected image
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Sort contours based on area (largest contour first)
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+    # Get bounding box of the largest contour (most likely the main object)
+    if contours:
+        x, y, w, h = cv2.boundingRect(contours[0])
+        return (x, y, w, h)  # Coordinates of the bounding box
+
+    return None  # Return None if no contours detected
+
+# Function to add text to an image at the detected position
 def add_text_to_image(photo_path, text, output_path):
     try:
-        # Load the user's photo
+        # Detect the position where the logo should be placed
+        position = detect_logo_position(photo_path)
+
+        if position is None:
+            logger.error("No suitable area found for placing the logo.")
+            return None
+
+        # Load the image
         user_image = Image.open(photo_path)
         user_image = user_image.convert("RGBA")  # Convert to RGBA for transparency
 
@@ -38,12 +73,15 @@ def add_text_to_image(photo_path, text, output_path):
         # Select random font
         font = ImageFont.truetype(random.choice(fonts), 100)  # Adjust font size as needed
 
-        # Calculate text size and position
+        # Extract position details
+        x, y, w, h = position
+
+        # Calculate text size and position within the bounding box
         text_width, text_height = draw.textsize(text, font=font)
-        position = ((user_image.width - text_width) // 2, (user_image.height - text_height) // 2)
+        text_position = (x + (w - text_width) // 2, y + (h - text_height) // 2)
 
         # Add glow effect to text
-        add_glow(draw, position, text, font, glow_color="red", text_color="white", glow_strength=15)
+        add_glow(draw, text_position, text, font, glow_color="red", text_color="white", glow_strength=15)
 
         # Save the final image with transparent background where necessary
         user_image.save(output_path, "PNG")
@@ -63,7 +101,6 @@ async def photo_handler(_, message: Message):
         await message.reply_text("Ab apna logo text bheje.")
 
         # Store the user's photo path and wait for text
-        # (This can be done using a state management system like a dictionary or database)
         user_data[message.from_user.id] = {'photo_path': photo_path}
 
 # Handler for receiving text and adding it to the photo
@@ -115,3 +152,4 @@ if __name__ == "__main__":
         app.run()
     else:
         logger.error("Client banane mein kuch problem aayi.")
+        
