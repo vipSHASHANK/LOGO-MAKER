@@ -41,19 +41,19 @@ def enhance_image(input_image_path, output_image_path):
 
         # 1. कंट्रास्ट सुधारें (हल्का कंट्रास्ट)
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.5)  # कंट्रास्ट हल्का बढ़ाएं
+        img = enhancer.enhance(1.2)  # कंट्रास्ट हल्का बढ़ाएं
 
         # 2. ब्राइटनेस सुधारें (हल्की ब्राइटनेस)
         enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.2)  # ब्राइटनेस हल्का बढ़ाएं
+        img = enhancer.enhance(1.1)  # ब्राइटनेस हल्का बढ़ाएं
 
         # 3. शार्पनेस सुधारें (हल्की शार्पनेस)
         enhancer = ImageEnhance.Sharpness(img)
-        img = enhancer.enhance(1.5)  # शार्पनेस बढ़ाएं, लेकिन ज्यादा नहीं
+        img = enhancer.enhance(1.7)  # शार्पनेस बढ़ाएं, लेकिन ज्यादा नहीं
 
         # 4. कलर सैचुरेशन बढ़ाएं (हल्का सैचुरेशन)
         enhancer = ImageEnhance.Color(img)
-        img = enhancer.enhance(1.5)  # कलर सैचुरेशन हल्का बढ़ाएं
+        img = enhancer.enhance(1.4)  # कलर सैचुरेशन हल्का बढ़ाएं
 
         # इमेज को सेव करें
         img.save(output_image_path)
@@ -150,10 +150,3 @@ async def photo_handler(_, message: Message) -> None:
             os.remove(local_path)  # अगर डाउनलोड में समस्या हो तो इमेज हटा दें
 
 if __name__ == "__main__":
-    try:
-        # बोट को चलाने के लिए नया क्लाइंट बनाएं और उसे रन करें
-        app.run()
-    except SessionRevoked:
-        logger.error("सत्र रद्द कर दिया गया है। कृपया बोट को फिर से शुरू करें।")
-    except Exception as e:
-        logger.error(f"कुछ गड़बड़ हो गई: {e}")
