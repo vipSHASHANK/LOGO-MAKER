@@ -6,19 +6,21 @@ from pyrogram.errors import SessionRevoked  # Only importing SessionRevoked
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
 from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons
+import time
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Pyrogram Bot Setup
-app = Client(
-    "logo_creator_bot",
-    bot_token=Config.BOT_TOKEN,
-    api_id=Config.API_ID,
-    api_hash=Config.API_HASH,
-    workers=2  # Set number of workers to handle requests faster
-)
+def create_app():
+    return Client(
+        "logo_creator_bot",
+        bot_token=Config.BOT_TOKEN,
+        api_id=Config.API_ID,
+        api_hash=Config.API_HASH,
+        workers=2  # Set number of workers to handle requests faster
+    )
 
 # Font options (fonts stored here)
 FONT_OPTIONS = [
@@ -91,61 +93,16 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Handler for when a user sends a photo
-@app.on_message(filters.photo & filters.private)
-async def photo_handler(_, message: Message):
-    if message.photo:
-        photo_path = f"user_photos/{message.photo.file_id}.jpg"
-        await message.download(photo_path)
-        
-        await message.reply_text("Ab apna logo text bheje.")
-
-# Handler for receiving logo text after photo
-@app.on_message(filters.text & filters.private)
-async def text_handler(_, message: Message):
-    user_text = message.text.strip()
-
-    if not user_text:
-        await message.reply_text("Logo text dena hoga.")
-        return
-
-    # Save the text into the user's data
-    photo_path = f"user_photos/{message.photo.file_id}.jpg"
-    
-    # Send font selection buttons
-    font_buttons = create_font_buttons()
-    await message.reply_text(
-        "Apna font choose karein:", 
-        reply_markup=InlineKeyboardMarkup([font_buttons])
-    )
-
-# Handler for font selection
-@app.on_callback_query(filters.regex("^font_"))
-async def font_button_handler(_, callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    selected_font_name = callback_query.data.split("_")[1]
-    selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
-
-    if selected_font:
-        font_path = selected_font['path']
-        
-        photo_path = "user_photos/some_photo.jpg"  # Replace with the actual user photo path
-        user_text = "Sample Text"  # Replace with the actual user text input
-        output_path = f"logos/updated_{user_text}_logo.png"
-        
-        result = await add_text_to_image(photo_path, user_text, output_path, font_path=font_path)
-
-        if result:
-            await callback_query.message.edit_text(
-                "Font selected! Ab apni logo ka position, size aur glow color change karein.",
-                reply_markup=InlineKeyboardMarkup([
-                    *POSITION_SIZE_BUTTONS,
-                    *GLOW_COLOR_BUTTONS
-                ])
-            )
-            media = InputMediaPhoto(media=output_path, caption="")
-            await callback_query.message.edit_media(media=media)
-            await callback_query.answer(f"Font changed to {selected_font_name}")
+# Reinitialize the bot after session is revoked
+async def restart_bot():
+    try:
+        app.stop()  # Stop the previous client instance
+        logger.info("Bot stopped. Restarting the bot.")
+        time.sleep(2)  # Giving some time before reinitializing
+        app = create_app()  # Reinitialize the bot client
+        app.run()  # Start the bot again
+    except Exception as e:
+        logger.error(f"Error during bot restart: {e}")
 
 # Handler for position adjustments, size changes, and glow color changes
 @app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
@@ -194,15 +151,12 @@ async def start(_, message: Message):
 
 # Global error handling using try-except for the main part
 try:
+    app = create_app()  # Initialize the app
     app.run()
 except SessionRevoked as e:
     logger.error(f"Session revoked: {str(e)}. The session has been invalidated.")
     # Restart the bot if session is revoked
-    try:
-        app.stop()  # Stop the current session
-        app.start()  # Restart the session
-    except Exception as ex:
-        logger.error(f"Error during bot restart: {str(ex)}")
+    await restart_bot()  # This will reinitialize and restart the bot
 except Exception as e:
     logger.error(f"An unexpected error occurred: {str(e)}")
     
