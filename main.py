@@ -17,14 +17,16 @@ fonts = [
     "fonts/FIGHTBACK.ttf"  # Replace with the path to a stylized, rough font
 ]
 
-# Function to add glow effect to text
-def add_glow(draw, position, text, font, glow_color, text_color, glow_strength=10):
+# Function to add refined glow effect to text
+def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_strength=5):
     x, y = position
-    for offset in range(glow_strength, 0, -1):
+    # Draw glow around the text with limited strength for edges
+    for offset in range(1, glow_strength + 1):  # Limit glow strength
         draw.text((x - offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x - offset, y + offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
+    # Draw the main text in the center with the normal color
     draw.text(position, text, font=font, fill=text_color)
 
 # Function to detect suitable empty area in the image (using contours)
@@ -54,6 +56,26 @@ def detect_empty_area(image_path):
 
     return None  # Return None if no contours detected
 
+# Function to dynamically adjust text size based on available space
+def get_dynamic_font(image, text, max_width, max_height):
+    # Create ImageDraw object to calculate text size
+    draw = ImageDraw.Draw(image)
+    
+    # Try different font sizes
+    font_size = 100
+    while font_size > 10:
+        font = ImageFont.truetype(random.choice(fonts), font_size)
+        text_width, text_height = draw.textsize(text, font=font)
+        
+        # If the text fits within the available space, break the loop
+        if text_width <= max_width and text_height <= max_height:
+            return font, text_width, text_height
+        
+        font_size -= 5  # Reduce font size if text is too big
+
+    # Return the smallest font if no suitable size is found
+    return font, text_width, text_height
+
 # Function to add text to an image at the detected position
 def add_text_to_image(photo_path, text, output_path):
     try:
@@ -68,21 +90,18 @@ def add_text_to_image(photo_path, text, output_path):
         user_image = Image.open(photo_path)
         user_image = user_image.convert("RGBA")  # Convert to RGBA for transparency
 
-        # Create an ImageDraw object
-        draw = ImageDraw.Draw(user_image)
-
-        # Select random font
-        font = ImageFont.truetype(random.choice(fonts), 100)  # Adjust font size as needed
-
         # Extract position details
         x, y, w, h = position
 
-        # Calculate text size and position within the bounding box
-        text_width, text_height = draw.textsize(text, font=font)
+        # Dynamically calculate the font size to fit within the detected area
+        font, text_width, text_height = get_dynamic_font(user_image, text, w, h)
+        
+        # Calculate text position to center it within the bounding box
         text_position = (x + (w - text_width) // 2, y + (h - text_height) // 2)
 
-        # Add glow effect to text
-        add_glow(draw, text_position, text, font, glow_color="red", text_color="white", glow_strength=15)
+        # Add refined glow effect to text
+        draw = ImageDraw.Draw(user_image)
+        add_refined_glow(draw, text_position, text, font, glow_color="red", text_color="white", glow_strength=10)
 
         # Save the final image with transparent background where necessary
         user_image.save(output_path, "PNG")
