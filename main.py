@@ -1,25 +1,40 @@
 import os
 import logging
-from pyrogram import Client, filters
-from pyrogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram.handlers import CallbackQueryHandler
 from PIL import Image, ImageDraw, ImageFont
-from config import Config  # Ensure you have your correct bot token and API credentials
-from private_buttons import get_position_buttons  # Importing buttons
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
+from config import Config  # Ensure you have this file for your bot's config
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Dictionary to store user data
+app = Client(
+    "logo_creator_bot",
+    bot_token=Config.BOT_TOKEN,
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+)
+
+# Dictionary to store user data (for handling images and text)
 user_data = {}
+
+# Function to add refined glow effect to text
+def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_strength=5):
+    x, y = position
+    # Draw glow around the text with limited strength for edges
+    for offset in range(1, glow_strength + 1):  # Limit glow strength
+        draw.text((x - offset, y - offset), text, font=font, fill=glow_color)
+        draw.text((x + offset, y - offset), text, font=font, fill=glow_color)
+        draw.text((x - offset, y + offset), text, font=font, fill=glow_color)
+        draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
+    # Draw the main text in the center with the normal color
+    draw.text(position, text, font=font, fill=text_color)
 
 # Function to dynamically adjust text size based on available space
 def get_dynamic_font(image, text, max_width, max_height):
-    # Create ImageDraw object to calculate text size
     draw = ImageDraw.Draw(image)
     
-    # Try different font sizes
     font_size = 100
     while font_size > 10:
         font = ImageFont.truetype("fonts/FIGHTBACK.ttf", font_size)
@@ -31,17 +46,14 @@ def get_dynamic_font(image, text, max_width, max_height):
         
         font_size -= 5  # Reduce font size if text is too big
 
-    # Return the smallest font if no suitable size is found
     return font, text_width, text_height
 
 # Function to add text to an image at a specified position
 def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1):
     try:
-        # Load the image
         user_image = Image.open(photo_path)
         user_image = user_image.convert("RGBA")  # Convert to RGBA for transparency
 
-        # Dynamically calculate the font size to fit within the image
         max_width, max_height = user_image.size
         font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height)
 
@@ -49,35 +61,21 @@ def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, siz
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
 
-        # Center the text based on the image size, then apply offsets
         x = (max_width - text_width) // 2 + x_offset
         y = (max_height - text_height) // 2 + y_offset
         text_position = (x, y)
 
-        # Add refined glow effect to text
         draw = ImageDraw.Draw(user_image)
         add_refined_glow(draw, text_position, text, font, glow_color="red", text_color="white", glow_strength=10)
 
-        # Save the final image with transparent background where necessary
         user_image.save(output_path, "PNG")
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Add refined glow effect to text
-def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_strength=5):
-    x, y = position
-    # Draw glow around the text with limited strength for edges
-    for offset in range(1, glow_strength + 1):
-        draw.text((x - offset, y - offset), text, font=font, fill=glow_color)
-        draw.text((x + offset, y - offset), text, font=font, fill=glow_color)
-        draw.text((x - offset, y + offset), text, font=font, fill=glow_color)
-        draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
-    # Draw the main text in the center with the normal color
-    draw.text(position, text, font=font, fill=text_color)
-
 # Handler for when a user sends a photo
+@app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message):
     if message.photo:
         # Save the received photo
@@ -91,6 +89,7 @@ async def photo_handler(_, message: Message):
         user_data[message.from_user.id] = {'photo_path': photo_path}
 
 # Handler for receiving text and creating the logo
+@app.on_message(filters.text & filters.private)
 async def text_handler(_, message: Message):
     user_id = message.from_user.id
     if user_id not in user_data:
@@ -112,28 +111,37 @@ async def text_handler(_, message: Message):
         result = add_text_to_image(photo_path, user_text, output_path)
 
         if result:
-            # Send the initial logo image to the user with buttons for position adjustments
-            buttons = get_position_buttons()  # Get position buttons from the private_buttons file
+            # Send the initial logo image to the user with position adjustment buttons
+            buttons = [
+                [InlineKeyboardButton("⬅️ Left", callback_data="left"),
+                 InlineKeyboardButton("⬆️ Up", callback_data="up"),
+                 InlineKeyboardButton("➡️ Right", callback_data="right")],
+                [InlineKeyboardButton("⬇️ Down", callback_data="down"),
+                 InlineKeyboardButton("🔽 Smaller", callback_data="smaller"),
+                 InlineKeyboardButton("🔼 Bigger", callback_data="bigger")]
+            ]
             await message.reply_photo(output_path, reply_markup=InlineKeyboardMarkup(buttons))
 
             # Store the current state of the image and user adjustments
             user_data[user_id]['output_path'] = output_path
             user_data[user_id]['text_position'] = (0, 0)  # Default offset
             user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
+            user_data[user_id]['text'] = user_text  # Store the text for later use
 
 # Handler for position adjustments through buttons
+@app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger)$"))
 async def button_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     if user_id not in user_data:
         return
 
-    # Extract the action from the button pressed
     action = callback_query.data
     user_info = user_data[user_id]
     
-    # Adjust position or size based on action
+    # Extract current position and size multiplier
     x_offset, y_offset = user_info['text_position']
     size_multiplier = user_info['size_multiplier']
+    text = user_info['text']  # Get the logo text
 
     if action == "left":
         x_offset -= 10
@@ -152,37 +160,38 @@ async def button_handler(_, callback_query: CallbackQuery):
     user_info['text_position'] = (x_offset, y_offset)
     user_info['size_multiplier'] = size_multiplier
 
-    # Get the photo path and text to re-create the logo with new adjustments
+    # Get the photo path and re-create the logo with new adjustments
     photo_path = user_info['photo_path']
-    text = user_info.get('text', '')  # Keep original text from user
     output_path = f"logos/updated_{text}_logo.png"
 
     # Regenerate the logo with the new position and size
     add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier)
 
-    # Send the updated logo image using edit_media
+    # Use `edit_media` to update the photo in the message
     await callback_query.message.edit_media(
-        media={"type": "photo", "media": output_path},
-        caption="Logo with updated position."
+        media={"type": "photo", "media": output_path}, 
+        reply_markup=callback_query.message.reply_markup  # Keep the same buttons
     )
+
+# Start command handler
+@app.on_message(filters.command("start"))
+async def start_command(_, message: Message):
+    """Welcomes the user with instructions."""
+    welcome_text = (
+        "👋 Welcome to the Logo Creator Bot!\n\n"
+        " • Upload a photo: Send a photo first.\n"
+        " • Add logo text: After sending the photo, you can provide the text for the logo.\n"
+        " • Receive the logo: After text is added, you'll get your custom logo.\n"
+    )
+
+    keyboard = [
+        [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
 
 # Main entry point to run the bot
 if __name__ == "__main__":
-    try:
-        app = Client(
-            "stylish_text_logo_bot_session",  # Session name
-            bot_token=Config.BOT_TOKEN,
-            api_id=Config.API_ID,
-            api_hash=Config.API_HASH,
-        )
-
-        # Register handlers
-        app.add_handler(filters.photo, photo_handler)
-        app.add_handler(filters.text, text_handler)
-        app.add_handler(CallbackQueryHandler(button_handler))  # Correct handler for button presses
-
-        # Run the bot
-        app.run()
-    except Exception as e:
-        logger.error(f"Error starting the bot: {e}")
-        
+    app.run()
+    
