@@ -4,20 +4,11 @@ import requests
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from config import Config  # Ensure you have this file for your bot's config
-from PIL import Image
-from io import BytesIO
+from pyrogram.errors import SessionRevoked  # Import SessionRevoked for error handling
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize the bot client
-app = Client(
-    "photo_enhancer_bot",
-    bot_token=Config.BOT_TOKEN,
-    api_id=Config.API_ID,
-    api_hash=Config.API_HASH,
-)
 
 # PixelCut API setup (or any enhancement API you want to use)
 PIXELCUT_API_KEY = "sk_43374ec592354e4295b023151243efa4"
@@ -46,6 +37,21 @@ def enhance_image_with_pixelcut(image_path):
         logger.error(f"Error enhancing image with PixelCut: {e}")
         return None
 
+# Function to create the client, handling session revocation
+def create_client():
+    try:
+        app = Client(
+            "photo_enhancer_session",  # Make sure session name is unique per bot instance
+            bot_token=Config.BOT_TOKEN,
+            api_id=Config.API_ID,
+            api_hash=Config.API_HASH,
+        )
+        return app
+    except Exception as e:
+        logger.error(f"Error creating client: {e}")
+        return None
+
+# Start command handler
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     """Welcomes the user with instructions."""
@@ -61,6 +67,7 @@ async def start_command(_, message: Message) -> None:
 
     await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
 
+# Photo handler (processing photo)
 @app.on_message(filters.photo & filters.incoming & filters.private)
 async def photo_handler(_, message: Message) -> None:
     """Handles incoming photo messages by enhancing them."""
@@ -97,5 +104,20 @@ async def photo_handler(_, message: Message) -> None:
         if os.path.exists(local_path):
             os.remove(local_path)  # Clean up if download fails
 
+# Function to handle session revocation errors and recreate session
+def handle_session_revocation():
+    try:
+        app.run()
+    except SessionRevoked:
+        logger.error("Session was revoked. Deleting session file and re-running bot.")
+        os.remove("photo_enhancer_session.session")  # Delete session file
+        app = create_client()  # Recreate the client
+        app.run()  # Restart bot after deleting the session
+
+# Main entry point to run the bot
 if __name__ == "__main__":
-    app.run()
+    app = create_client()
+    if app:
+        handle_session_revocation()  # Run the bot, handle session revocation errors
+    else:
+        logger.error("Failed to create the client.")
