@@ -5,7 +5,7 @@ import numpy as np
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from PIL import Image, ImageEnhance, ImageFilter
-from config import Config  # Make sure to have this config file
+from config import Config  # Ensure you have this file for your bot's config
 from pyrogram.errors import SessionRevoked
 
 # Logging Setup
@@ -21,24 +21,25 @@ def create_client(session_name):
         api_hash=Config.API_HASH,
     )
 
-# Function to enhance image (Remini-like effect)
+# Function to enhance image (without color adjustment)
 def enhance_image(input_image_path, output_image_path):
     try:
         # Open image using Pillow
         img = Image.open(input_image_path)
 
-        # 1. Adjust Contrast and Brightness (Use moderate values)
+        # 1. Adjust Contrast (mild enhancement)
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(1.2)  # Slight contrast enhancement
 
+        # 2. Adjust Brightness (mild enhancement)
         enhancer = ImageEnhance.Brightness(img)
         img = enhancer.enhance(1.1)  # Slight brightness enhancement
 
-        # 2. Enhance Sharpness (Moderate sharpness increase)
+        # 3. Enhance Sharpness (moderate sharpness)
         enhancer = ImageEnhance.Sharpness(img)
         img = enhancer.enhance(1.5)  # Moderate sharpness enhancement
 
-        # 3. Apply Gaussian Blur (for smoothness)
+        # 4. Apply Gaussian Blur (for smoothness)
         img = img.filter(ImageFilter.GaussianBlur(radius=0.5))  # Lighter blur to avoid over-smoothing
 
         # Save the image
@@ -58,7 +59,7 @@ def apply_opencv_enhancements(image_path):
     # 1. Denoising (reduce noise)
     denoised_image = cv2.fastNlMeansDenoisingColored(image, None, 15, 15, 7, 21)  # Moderate denoising
 
-    # 2. Contrast Stretching (Auto-adjust contrast, not too much)
+    # 2. Contrast Stretching (Auto-adjust contrast)
     lab = cv2.cvtColor(denoised_image, cv2.COLOR_BGR2Lab)
     l, a, b = cv2.split(lab)
     l = cv2.equalizeHist(l)  # Apply histogram equalization to the L channel (luminance)
