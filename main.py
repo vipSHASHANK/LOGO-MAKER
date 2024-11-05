@@ -2,17 +2,17 @@ import logging
 import random
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram.handlers import CallbackQueryHandler  # Importing the correct handler
-from config import Config  # Ensure your config file contains BOT_TOKEN, API_ID, and API_HASH
+from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from pyrogram.handlers import CallbackQueryHandler
+from config import Config  # Make sure this imports your configuration file correctly
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)  # Use DEBUG to see detailed logs
+logging.basicConfig(level=logging.DEBUG)  # Use DEBUG for detailed logs
 logger = logging.getLogger(__name__)
 
 # List of available fonts (TTF fonts)
 fonts = [
-    "fonts/FIGHTBACK.ttf"  # Replace with the path to a stylized, rough font
+    "fonts/FIGHTBACK.ttf"  # Make sure this path is correct for your font file
 ]
 
 # Dictionary to store user data
@@ -133,7 +133,7 @@ async def text_handler(_, message: Message):
             user_data[user_id]['size_multiplier'] = 1  # Default size multiplier
 
 # Handler for position adjustments through buttons
-async def button_handler(_, callback_query):
+async def button_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     if user_id not in user_data:
         return
