@@ -166,8 +166,11 @@ async def button_handler(_, callback_query: CallbackQuery):
     # Regenerate the logo with the new position and size
     add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier)
 
-    # Send the updated logo image
-    await callback_query.message.edit_photo(output_path)
+    # Use `edit_media` to update the photo in the message
+    await callback_query.message.edit_media(
+        media={"type": "photo", "media": output_path}, 
+        reply_markup=callback_query.message.reply_markup  # Keep the same buttons
+    )
 
 # Start command handler
 @app.on_message(filters.command("start"))
