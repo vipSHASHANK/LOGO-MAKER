@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Path to the background image
-background_image_path = "backgrounds/wood_texture.jpg"  # Replace with the path to your wood texture image
+background_image_path = "backgrounds/istockphoto-529329091-612x612.jpg"  # Replace with the path to your wood texture image
 
 # List of available fonts (TTF fonts)
 fonts = [
