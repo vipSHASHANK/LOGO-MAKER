@@ -3,13 +3,20 @@ import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
-from config import Config  # Ensure you have this file for your bot's config
+from config import Config
+from motor.motor_asyncio import AsyncIOMotorClient
 from private_buttons import create_font_buttons, POSITION_SIZE_BUTTONS, GLOW_COLOR_BUTTONS  # Import buttons
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# MongoDB Client Setup
+mongo_client = AsyncIOMotorClient(Config.MONGO_URI)
+db = mongo_client[Config.MONGO_DB_NAME]
+users_collection = db["users"]  # MongoDB collection for user data
+
+# Pyrogram Bot Setup
 app = Client(
     "logo_creator_bot",
     bot_token=Config.BOT_TOKEN,
@@ -25,8 +32,6 @@ FONT_OPTIONS = [
     {"name": "Courier", "path": "fonts/Pacifico-Regular.ttf"},
     {"name": "Verdana", "path": "fonts/Roboto-Regular.ttf"},
 ]
-
-user_data = {}
 
 # Function to dynamically adjust font size
 def get_dynamic_font(image, text, max_width, max_height, font_path=None):
@@ -46,10 +51,6 @@ def get_dynamic_font(image, text, max_width, max_height, font_path=None):
 
 # Function to add 3D text effect with shadow and glow
 def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offset=(5, 5), glow_strength=5):
-    """
-    Adds a 3D text effect by creating a shadow and the main text.
-    The main text is drawn on top of the shadow with a glowing effect.
-    """
     x, y = position
     
     # Shadow: Draw the shadow slightly offset from the original position
@@ -70,7 +71,7 @@ def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offse
     draw.text((x, y), text, font=font, fill=text_color)
 
 # Function to add text to the image
-def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red", font_path=None):
+async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red", font_path=None):
     try:
         user_image = Image.open(photo_path)
         user_image = user_image.convert("RGBA")
@@ -94,6 +95,22 @@ def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, siz
         logger.error(f"Error adding text to image: {e}")
         return None
 
+# Function to get user data from MongoDB
+async def get_user_data(user_id):
+    user = await users_collection.find_one({"user_id": user_id})
+    if user:
+        return user
+    else:
+        return None
+
+# Function to save/update user data in MongoDB
+async def save_user_data(user_id, data):
+    await users_collection.update_one(
+        {"user_id": user_id},
+        {"$set": data},
+        upsert=True
+    )
+
 # Handler for when a user sends a photo
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message):
@@ -101,14 +118,18 @@ async def photo_handler(_, message: Message):
         photo_path = f"user_photos/{message.photo.file_id}.jpg"
         await message.download(photo_path)
 
+        # Save user data in MongoDB
+        await save_user_data(message.from_user.id, {'photo_path': photo_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
+
         await message.reply_text("Ab apna logo text bheje.")
-        user_data[message.from_user.id] = {'photo_path': photo_path, 'text': ''}
 
 # Handler for receiving logo text after photo
 @app.on_message(filters.text & filters.private)
 async def text_handler(_, message: Message):
     user_id = message.from_user.id
-    if user_id not in user_data:
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
         await message.reply_text("Pehle apna photo bheje.")
         return
 
@@ -118,7 +139,9 @@ async def text_handler(_, message: Message):
         await message.reply_text("Logo text dena hoga.")
         return
 
-    user_data[user_id]['text'] = user_text
+    # Save the text into the user's data
+    user_data['text'] = user_text
+    await save_user_data(user_id, user_data)
 
     # Send font selection buttons
     font_buttons = create_font_buttons()
@@ -127,30 +150,27 @@ async def text_handler(_, message: Message):
         reply_markup=InlineKeyboardMarkup([font_buttons])
     )
 
-    # Initialize default values for position, size, and glow color
-    user_data[user_id]['text_position'] = (0, 0)
-    user_data[user_id]['size_multiplier'] = 1
-    user_data[user_id]['glow_color'] = "red"
-
 # Handler for font selection
 @app.on_callback_query(filters.regex("^font_"))
 async def font_button_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    if user_id not in user_data:
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
         return
 
     selected_font_name = callback_query.data.split("_")[1]
     selected_font = next((font for font in FONT_OPTIONS if font['name'] == selected_font_name), None)
-    
+
     if selected_font:
-        user_data[user_id]['selected_font'] = selected_font['path']
+        user_data['selected_font'] = selected_font['path']
         font_path = selected_font['path']
         
-        photo_path = user_data[user_id]['photo_path']
-        user_text = user_data[user_id]['text']
+        photo_path = user_data['photo_path']
+        user_text = user_data['text']
         output_path = f"logos/updated_{user_text}_logo.png"
         
-        result = add_text_to_image(photo_path, user_text, output_path, font_path=font_path)
+        result = await add_text_to_image(photo_path, user_text, output_path, font_path=font_path)
 
         if result:
             await callback_query.message.edit_text(
@@ -168,18 +188,19 @@ async def font_button_handler(_, callback_query: CallbackQuery):
 @app.on_callback_query(filters.regex("^(left|right|up|down|smaller|bigger|glow_[a-z]+)$"))
 async def button_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    if user_id not in user_data:
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
         return
 
     action = callback_query.data
-    user_info = user_data[user_id]
-    
-    x_offset, y_offset = user_info['text_position']
-    size_multiplier = user_info['size_multiplier']
-    text = user_info['text']  # Get the logo text
-    glow_color = user_info['glow_color']  # Get the selected glow color
-    font_path = user_info['selected_font']
+    x_offset, y_offset = user_data['text_position']
+    size_multiplier = user_data['size_multiplier']
+    text = user_data['text']
+    glow_color = user_data['glow_color']
+    font_path = user_data['selected_font']
 
+    # Adjust position, size, and glow color based on action
     if action == "left":
         x_offset -= 10
     elif action == "right":
@@ -200,15 +221,18 @@ async def button_handler(_, callback_query: CallbackQuery):
         glow_color = "blue"
 
     # Update user data with new position, size, and glow color
-    user_info['text_position'] = (x_offset, y_offset)
-    user_info['size_multiplier'] = size_multiplier
-    user_info['glow_color'] = glow_color
+    user_data['text_position'] = (x_offset, y_offset)
+    user_data['size_multiplier'] = size_multiplier
+    user_data['glow_color'] = glow_color
 
-    # Get the photo path and regenerate the logo with new adjustments
-    photo_path = user_info['photo_path']
+    # Save the updated user data to MongoDB
+    await save_user_data(user_id, user_data)
+
+    # Regenerate the logo with updated settings
+    photo_path = user_data['photo_path']
     output_path = f"logos/updated_{text}_logo.png"
 
-    result = add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, glow_color, font_path)
+    result = await add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier, glow_color, font_path)
 
     if result:
         media = InputMediaPhoto(media=output_path, caption="")
@@ -222,4 +246,4 @@ async def start(_, message: Message):
 
 if __name__ == "__main__":
     app.run()
-        
+    
