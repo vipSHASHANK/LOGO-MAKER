@@ -1,15 +1,13 @@
 import logging
 import os
-import cv2
-import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import random
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
-from config import Config
+from config import Config  # Make sure your Config.py contains BOT_TOKEN, API_ID, and API_HASH
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)  # Use DEBUG to see detailed logs
 logger = logging.getLogger(__name__)
 
 # List of available fonts (TTF fonts)
@@ -32,33 +30,6 @@ def add_refined_glow(draw, position, text, font, glow_color, text_color, glow_st
     # Draw the main text in the center with the normal color
     draw.text(position, text, font=font, fill=text_color)
 
-# Function to detect suitable empty area in the image (using contours)
-def detect_empty_area(image_path):
-    # Read the image
-    image = cv2.imread(image_path)
-    
-    # Convert to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Apply GaussianBlur to reduce noise and improve edge detection
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Detect edges using Canny edge detector
-    edges = cv2.Canny(blurred, 50, 150)
-
-    # Find contours in the edge-detected image
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Sort contours based on area (largest contour first)
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
-
-    # Get bounding box of the largest contour (most likely the main object)
-    if contours:
-        x, y, w, h = cv2.boundingRect(contours[0])
-        return (x, y, w, h)  # Coordinates of the bounding box
-
-    return None  # Return None if no contours detected
-
 # Function to dynamically adjust text size based on available space
 def get_dynamic_font(image, text, max_width, max_height):
     # Create ImageDraw object to calculate text size
@@ -79,32 +50,25 @@ def get_dynamic_font(image, text, max_width, max_height):
     # Return the smallest font if no suitable size is found
     return font, text_width, text_height
 
-# Function to add text to an image at the detected position
+# Function to add text to an image at a specified position
 def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1):
     try:
-        # Detect the position where the logo should be placed
-        position = detect_empty_area(photo_path)
-
-        if position is None:
-            logger.error("No suitable area found for placing the logo.")
-            return None
-
         # Load the image
         user_image = Image.open(photo_path)
         user_image = user_image.convert("RGBA")  # Convert to RGBA for transparency
 
-        # Extract position details
-        x, y, w, h = position
-
-        # Dynamically calculate the font size to fit within the detected area
-        font, text_width, text_height = get_dynamic_font(user_image, text, w, h)
+        # Dynamically calculate the font size to fit within the image
+        max_width, max_height = user_image.size
+        font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height)
 
         # Apply size multiplier and adjust position
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
 
-        # Calculate new position with offsets
-        text_position = (x + (w - text_width) // 2 + x_offset, y + (h - text_height) // 2 + y_offset)
+        # Center the text based on the image size, then apply offsets
+        x = (max_width - text_width) // 2 + x_offset
+        y = (max_height - text_height) // 2 + y_offset
+        text_position = (x, y)
 
         # Add refined glow effect to text
         draw = ImageDraw.Draw(user_image)
@@ -185,5 +149,44 @@ async def button_handler(_, callback_query):
     if action == "left":
         x_offset -= 10
     elif action == "right":
-        x
-    
+        x_offset += 10
+    elif action == "up":
+        y_offset -= 10
+    elif action == "down":
+        y_offset += 10
+    elif action == "smaller":
+        size_multiplier = max(0.5, size_multiplier - 0.1)
+    elif action == "bigger":
+        size_multiplier = min(2, size_multiplier + 0.1)
+
+    # Update user data with new position and size
+    user_info['text_position'] = (x_offset, y_offset)
+    user_info['size_multiplier'] = size_multiplier
+
+    # Get the photo path and text to re-create the logo with new adjustments
+    photo_path = user_info['photo_path']
+    text = user_info.get('text', '')  # Keep original text from user
+    output_path = f"logos/updated_{text}_logo.png"
+
+    # Regenerate the logo with the new position and size
+    add_text_to_image(photo_path, text, output_path, x_offset, y_offset, size_multiplier)
+
+    # Send the updated logo image
+    await callback_query.message.edit_photo(output_path)
+
+# Main entry point to run the bot
+if __name__ == "__main__":
+    app = Client(
+        "stylish_text_logo_bot_session",  # Session name
+        bot_token=Config.BOT_TOKEN,
+        api_id=Config.API_ID,
+        api_hash=Config.API_HASH,
+    )
+
+    # Register handlers
+    app.add_handler(filters.photo, photo_handler)
+    app.add_handler(filters.text, text_handler)
+    app.add_handler(filters.callback_query, button_handler)
+
+    app.run()
+            
