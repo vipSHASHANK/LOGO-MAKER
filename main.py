@@ -194,13 +194,13 @@ async def button_handler(_, callback_query: CallbackQuery):
 async def start(_, message: Message):
     await message.reply_text("Welcome to Logo Creator Bot! Send a photo to get started.")
 
-# Handle Unauthorized errors (Session Revoked)
-@app.on_error(Exception)
-async def handle_unauthorized_error(_, e):
-    logger.error(f"Error: {str(e)}")
-    await app.stop()
-    await app.start()
-    logger.info("Bot session restarted successfully.")
+# Proper error handling
+@app.add_error_handler
+async def handle_error(client, error):
+    logger.error(f"An error occurred: {error}")
+    # Restart the client if there's an error like session revoked
+    await client.stop()
+    await client.start()
 
 if __name__ == "__main__":
     app.run()
