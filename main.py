@@ -4,7 +4,7 @@ import pyfiglet
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from config import Config
-from textart import text2art
+import art  # Using the 'art' library to generate text art
 from unidecode import unidecode
 
 # Set up logging
@@ -16,7 +16,7 @@ stylish_symbols = [
     "❤", "❀", "✰", "☪", "☽", "☁", "⭐", "✿", "☘", "❖", "✧", "☠", "⚡", "✪", "⚔", "✪", "❣", "➸", "✦"
 ]
 
-# Function to convert text to stylish versions using `pyfiglet` and `textart` library
+# Function to convert text to stylish versions using `pyfiglet` and `art` library
 def convert_to_stylish_text(input_text):
     """Text ko stylish formats mein convert kare."""
     
@@ -33,12 +33,12 @@ def convert_to_stylish_text(input_text):
     except Exception as e:
         logger.error(f"Error in pyfiglet: {e}")
 
-    # 2. Use textart for Unicode fonts
+    # 2. Use art library for Unicode fonts
     try:
-        textart_version = text2art(input_text)  # Converts to Unicode fancy font
-        stylish_versions.append(textart_version)
+        art_version = art.text2art(input_text)  # Converts to Unicode fancy font using 'art'
+        stylish_versions.append(art_version)
     except Exception as e:
-        logger.error(f"Error in textart: {e}")
+        logger.error(f"Error in art.text2art: {e}")
 
     # 3. Add random stylish symbols around the text
     symbol = random.choice(stylish_symbols)
