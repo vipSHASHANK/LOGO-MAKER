@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 import random
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.handlers import CallbackQueryHandler  # Importing the correct handler
 from config import Config  # Make sure your Config.py contains BOT_TOKEN, API_ID, and API_HASH
 
 # Set up logging
@@ -186,7 +187,7 @@ if __name__ == "__main__":
     # Register handlers
     app.add_handler(filters.photo, photo_handler)
     app.add_handler(filters.text, text_handler)
-    app.add_handler(filters.callback_query, button_handler)
+    app.add_handler(CallbackQueryHandler(button_handler))  # Correct handler for button presses
 
     app.run()
-            
+    
