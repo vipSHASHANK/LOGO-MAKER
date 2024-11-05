@@ -1,11 +1,10 @@
 import logging
-import os
-from PIL import Image, ImageDraw, ImageFont
 import random
+from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.handlers import CallbackQueryHandler  # Importing the correct handler
-from config import Config  # Make sure your Config.py contains BOT_TOKEN, API_ID, and API_HASH
+from config import Config  # Ensure your config file contains BOT_TOKEN, API_ID, and API_HASH
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)  # Use DEBUG to see detailed logs
@@ -177,17 +176,21 @@ async def button_handler(_, callback_query):
 
 # Main entry point to run the bot
 if __name__ == "__main__":
-    app = Client(
-        "stylish_text_logo_bot_session",  # Session name
-        bot_token=Config.BOT_TOKEN,
-        api_id=Config.API_ID,
-        api_hash=Config.API_HASH,
-    )
+    try:
+        app = Client(
+            "stylish_text_logo_bot_session",  # Session name
+            bot_token=Config.BOT_TOKEN,
+            api_id=Config.API_ID,
+            api_hash=Config.API_HASH,
+        )
 
-    # Register handlers
-    app.add_handler(filters.photo, photo_handler)
-    app.add_handler(filters.text, text_handler)
-    app.add_handler(CallbackQueryHandler(button_handler))  # Correct handler for button presses
+        # Register handlers
+        app.add_handler(filters.photo, photo_handler)
+        app.add_handler(filters.text, text_handler)
+        app.add_handler(CallbackQueryHandler(button_handler))  # Correct handler for button presses
 
-    app.run()
-    
+        # Run the bot
+        app.run()
+    except Exception as e:
+        logger.error(f"Error starting the bot: {e}")
+        
