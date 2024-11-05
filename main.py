@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 user_data_store = {}
 
 # बॉट सेटअप
-storage = MemoryStorage()  # स्टोरेज को अलग से सेट करें
+storage = MemoryStorage("logo_creator_memory")  # यूनिक नाम के साथ स्टोरेज सेट करें
 
 app = Client(
     "logo_creator_bot",  # यूनिक सत्र नाम
