@@ -3,7 +3,7 @@ import logging
 import tempfile
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, InputMediaPhoto
 from config import Config
 
 # Set up logging
@@ -234,8 +234,9 @@ async def position_callback(_, callback_query):
 
     keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
+    media = InputMediaPhoto(media=new_logo_path)
     await callback_query.message.edit_media(
-        media={"type": "photo", "media": new_logo_path},
+        media=media,  # Use InputMediaPhoto instead of dict
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
