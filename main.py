@@ -131,7 +131,6 @@ async def text_handler(_, message: Message) -> None:
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
 
-    # Generate the logo immediately after user sends the text
     local_path = user_data['photo_path']
     text = user_data['text']
     position = user_data['text_position']
@@ -144,7 +143,6 @@ async def text_handler(_, message: Message) -> None:
         await message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    # Define buttons for user interaction
     position_buttons = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Left", callback_data="position_left"),
@@ -171,10 +169,8 @@ async def text_handler(_, message: Message) -> None:
         ]
     ])
 
-    # Combine all buttons into one list of lists
     keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
-    # Send the generated logo with buttons
     await message.reply_photo(photo=output_path, reply_markup=InlineKeyboardMarkup(keyboard))
 
 @app.on_callback_query(filters.regex("position_"))
@@ -183,12 +179,10 @@ async def position_callback(_, callback_query):
     position = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
     
-    # Default x_offset and y_offset
     x_offset, y_offset = 0, 0
 
-    # Map position to x_offset, y_offset values
     if position == "left":
-        x_offset = -100  # Adjust these values as per your requirement
+        x_offset = -100
     elif position == "right":
         x_offset = 100
     elif position == "up":
@@ -196,17 +190,14 @@ async def position_callback(_, callback_query):
     elif position == "down":
         y_offset = 100
 
-    # Update the position in user data
     user_data['text_position'] = (x_offset, y_offset)
     await save_user_data(user_id, user_data)
 
-    # Re-generate logo with new position
     local_path = user_data['photo_path']
     text = user_data['text']
     size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
-    
-    # Generate logo with updated position
+
     new_logo_path = await add_text_to_image(local_path, text, None, 
                                              x_offset=x_offset, y_offset=y_offset,
                                              size_multiplier=size_multiplier, text_color=glow_color)
@@ -215,7 +206,6 @@ async def position_callback(_, callback_query):
         await callback_query.message.edit_text("There was an error generating the logo.")
         return
 
-    # Send the updated image with new buttons
     position_buttons = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Left", callback_data="position_left"),
@@ -242,11 +232,12 @@ async def position_callback(_, callback_query):
         ]
     ])
 
-    # Combine all buttons into one list of lists
     keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
-    # Send the updated logo with buttons
-    await callback_query.message.edit_photo(photo=new_logo_path, reply_markup=InlineKeyboardMarkup(keyboard))
+    await callback_query.message.edit_media(
+        media={"type": "photo", "media": new_logo_path},
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
     await callback_query.answer(f"Position updated to {position}!")
 
@@ -256,7 +247,6 @@ async def size_callback(_, callback_query):
     size = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
-    # Update user data with new size
     user_data['size_multiplier'] = float(size)
     await save_user_data(user_id, user_data)
 
@@ -269,7 +259,6 @@ async def color_callback(_, callback_query):
     color = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
-    # Update user data with new color
     user_data['glow_color'] = color
     await save_user_data(user_id, user_data)
 
