@@ -234,7 +234,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     if callback_query.data == "download_logo":
         await callback_query.answer("Downloading your logo...")
         with open(output_path, "rb") as file:
-            await callback_query.message.reply_document(file, caption="Your logo is ready for download.")
+            await callback_query.message.reply_document(file, caption="【 ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ 】")
         await callback_query.message.edit_reply_markup(reply_markup=None)
     
 if __name__ == "__main__":
