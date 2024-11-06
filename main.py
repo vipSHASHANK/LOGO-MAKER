@@ -173,20 +173,25 @@ async def text_handler(_, message: Message) -> None:
 
     user_text = message.text.strip()
     if not user_text:
-        await message.reply_text("❖ ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴛᴇxᴛ ғᴏʀ ᴛʜᴇ ʟᴏɢᴏ.")
+        await message.reply_text("❖ ᴛᴇxᴛ ᴄᴀɴɴᴏᴛ ʙᴇ ᴇᴍᴘᴛʏ!")
         return
+
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
 
-    # Generate logo and show adjustment options
-    font_path = user_data['font']  # Default to Deadly Advance font if not set
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    # Create image with user text
+    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
+    text_color = ImageColor.getrgb(user_data['text_color'])
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], text_color)
 
-    if output_path is None:
-        await message.reply_text("There was an error generating the logo. Please try again.")
-        return
+    # Apply blur if necessary
+    if user_data['blur_intensity'] > 0:
+        blurred_image_path = await apply_blur(output_path, user_data['blur_intensity'])
+        if blurred_image_path:
+            output_path = blurred_image_path
 
-    await message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
+    await message.reply_photo(output_path, caption="❖ ʏᴏᴜʀ ʟᴏɢᴏ ᴄʜᴀɴɢɪɴɢ....!", reply_markup=get_adjustment_keyboard(output_path))
+    await message.delete()
 
 @app.on_callback_query()
 async def callback_handler(_, callback_query: CallbackQuery):
@@ -237,11 +242,32 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "font_lobster":
         user_data['font'] = "fonts/FIGHTBACK.ttf"
 
+    # Blur intensity logic
+    if callback_query.data == "blur_plus":
+        user_data['blur_intensity'] += 1
+    elif callback_query.data == "blur_minus" and user_data['blur_intensity'] > 0:
+        user_data['blur_intensity'] -= 1
+
     await save_user_data(user_id, user_data)
 
     # Regenerate the logo with the new adjustments
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")  # Default to Deadly Advance font if no font is set
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    text_color = ImageColor.getrgb(user_data['text_color'])
+    output_path = await add_text_to_image(
+        user_data['photo_path'], 
+        user_data['text'], 
+        None, 
+        font_path, 
+        user_data['text_position'], 
+        user_data['size_multiplier'], 
+        text_color
+    )
+
+    # Apply blur effect if needed
+    if user_data['blur_intensity'] > 0:
+        blurred_image_path = await apply_blur(output_path, user_data['blur_intensity'])
+        if blurred_image_path:
+            output_path = blurred_image_path
 
     if output_path is None:
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
@@ -273,4 +299,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
-    
+        
