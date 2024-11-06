@@ -92,7 +92,6 @@ def convert_to_jpg(png_path):
         return None
 
 # Handle user interactions with buttons
-@app.on_callback_query()
 async def callback_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     user_data = await get_user_data(user_id)
@@ -184,6 +183,12 @@ app = Client(
     api_hash=Config.API_HASH,
 )
 
+# Register the callback query handler
+@app.on_callback_query()
+async def callback_handler_wrapper(_, callback_query: CallbackQuery):
+    await callback_handler(_, callback_query)
+
 # Start the bot
 if __name__ == "__main__":
     app.run()
+                
