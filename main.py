@@ -264,6 +264,13 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     await callback_query.message.edit_media(InputMediaPhoto(output_path), reply_markup=get_adjustment_keyboard(output_path))
     await callback_query.answer()
+
+    # Handle the download button callback
+    if callback_query.data == "download_logo":
+        await callback_query.answer("Downloading your logo...")
+        with open(output_path, "rb") as file:
+            await callback_query.message.reply_document(file, caption="Your logo is ready for download.")
+
     
 if __name__ == "__main__":
     app.run()
