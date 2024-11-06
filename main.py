@@ -34,49 +34,32 @@ def get_dynamic_font(image, text, max_width, max_height, font_path=None):
         font_size -= 5
     return font, text_width, text_height
 
-# 3D text effect
-def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offset=(5, 5), glow_strength=5):
-    # Ensure glow_color is a valid string color (e.g., "red", "blue", "white")
-    if not isinstance(glow_color, str) or len(glow_color) < 3:
-        glow_color = "red"  # Default to red if glow_color is invalid
-
-    x, y = position
-    shadow_x = x + shadow_offset[0]
-    shadow_y = y + shadow_offset[1]
-    draw.text((shadow_x, shadow_y), text, font=font, fill="black")
-    
-    # Drawing glow effect
-    for offset in range(1, glow_strength + 1):
-        draw.text((x - offset, y - offset), text, font=font, fill=glow_color)
-        draw.text((x + offset, y - offset), text, font=font, fill=glow_color)
-        draw.text((x - offset, y + offset), text, font=font, fill=glow_color)
-        draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
-    
-    draw.text((x, y), text, font=font, fill=text_color)
-
-# Add text to image
-async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red", font_path=None):
+# Add text to image without 3D effect
+async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, text_color="white", font_path=None):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
         font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height, font_path)
+        
+        # Adjust text size based on multiplier
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
+        
+        # Center the text
         x = (max_width - text_width) // 2 + x_offset
         y = (max_height - text_height) // 2 + y_offset
         text_position = (x, y)
+        
         draw = ImageDraw.Draw(user_image)
         
-        # Log the value of glow_color for debugging purposes
-        logger.debug(f"Using glow color: {glow_color}")
+        # Add the text directly (no glow or 3D effect)
+        draw.text(text_position, text, font=font, fill=text_color)
         
-        # Add the 3D text with glow
-        add_3d_text(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
-
         # Use a temporary file for output
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
             user_image.save(output_path, "PNG")
+        
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
@@ -155,7 +138,8 @@ async def text_handler(_, message: Message) -> None:
     size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
 
-    output_path = await add_text_to_image(local_path, text, None, position, size_multiplier, glow_color)
+    # Use the simplified version of text addition
+    output_path = await add_text_to_image(local_path, text, None, position, size_multiplier, text_color=glow_color)
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
