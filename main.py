@@ -25,9 +25,9 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Define inline keyboard for adjustments with color and blur options
-def get_adjustment_keyboard():
-    return InlineKeyboardMarkup([
+# Define inline keyboard for adjustments with color, blur options, and download button
+def get_adjustment_keyboard(final_image_path=None):
+    buttons = [
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
          InlineKeyboardButton("➡️ Right", callback_data="move_right")],
         [InlineKeyboardButton("⬆️ Up", callback_data="move_up"),
@@ -54,7 +54,13 @@ def get_adjustment_keyboard():
         # Blur buttons
         [InlineKeyboardButton("Blur+", callback_data="blur_plus"),
          InlineKeyboardButton("Blur-", callback_data="blur_minus")]
-    ])
+    ]
+    
+    # Add download button if final image is available
+    if final_image_path:
+        buttons.append([InlineKeyboardButton("Download Logo", callback_data="download_logo")])
+
+    return InlineKeyboardMarkup(buttons)
 
 # Add text to image with adjustments and color
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
@@ -255,8 +261,39 @@ async def callback_handler(_, callback_query: CallbackQuery):
     output_path = await add_text_to_image(output_path, user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     # Update the media and keep the same buttons
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with changes!"), reply_markup=get_adjustment_keyboard())
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with changes!"), reply_markup=get_adjustment_keyboard(final_image_path=output_path))
     await callback_query.answer()
 
+# Handle download request
+@app.on_callback_query(filters.regex("download_logo"))
+async def download_logo(_, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data = await get_user_data(user_id)
+
+    if not user_data or not user_data.get("photo_path"):
+        await callback_query.answer("Please upload a photo first.", show_alert=True)
+        return
+
+    # Final image path
+    final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    final_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
+    final_image_path = await add_text_to_image(final_image_path, user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+
+    # Convert to JPG format for download
+    jpg_path = final_image_path.replace(".png", ".jpg")
+    image = Image.open(final_image_path)
+    image = image.convert("RGB")
+    image.save(jpg_path, "JPEG")
+
+    # Send the final image
+    await callback_query.message.reply_document(jpg_path, caption="Here is your final logo!")
+
+    # Optionally, you can delete the temporary files
+    os.remove(final_image_path)
+    os.remove(jpg_path)
+
+    await callback_query.answer()
+    
 # Start the bot
 app.run()
+    
