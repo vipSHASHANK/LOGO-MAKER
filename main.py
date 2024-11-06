@@ -2,6 +2,7 @@ import os
 import logging
 import tempfile
 from PIL import Image, ImageDraw, ImageFont, ImageColor
+from random import randint
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
@@ -52,7 +53,7 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("Lobster", callback_data="font_lobster")]
     ])
 
-# Add text to image with adjustments and color
+# Add text to image with "brushstroke" effect
 async def add_text_to_image(photo_path, text, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
@@ -69,13 +70,15 @@ async def add_text_to_image(photo_path, text, font_path, text_position, size_mul
         x = text_position[0]
         y = text_position[1]
 
-        # Outline effect
-        outline_width = 3
-        for dx in [-outline_width, outline_width]:
-            for dy in [-outline_width, outline_width]:
-                draw.text((x + dx, y + dy), text, font=font, fill="white")
-
-        # Red main text
+        # Brushstroke effect (slightly offset multiple layers of text to create a stroke effect)
+        num_strokes = 8  # Number of brush strokes
+        for i in range(num_strokes):
+            offset_x = randint(-5, 5)  # Random horizontal offset
+            offset_y = randint(-5, 5)  # Random vertical offset
+            # Add a blurred stroke effect by drawing text in slightly different positions
+            draw.text((x + offset_x, y + offset_y), text, font=font, fill="white")  # White outline effect
+        
+        # Main text in the chosen color
         draw.text((x, y), text, font=font, fill=text_color)
 
         # Save the image
