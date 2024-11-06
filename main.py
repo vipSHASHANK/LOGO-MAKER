@@ -1,7 +1,6 @@
 import os
 import logging
 import tempfile
-import random
 from PIL import Image, ImageDraw, ImageFont, ImageColor
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
@@ -35,6 +34,8 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
         [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
          InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
+        
+        # Color selection buttons
         [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
          InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
          InlineKeyboardButton("🟢 Green", callback_data="color_green"),
@@ -42,6 +43,8 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
          InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
          InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
+        
+        # Font selection buttons
         [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
          InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
          InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
@@ -49,52 +52,37 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("Lobster", callback_data="font_lobster")]
     ])
 
-# Add text to image with a variable brush-like outline effect
+# Add text to image with adjustments and color
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
-        # Open the user image
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
 
-        # Adjust font size
+        # Adjust font size based on size_multiplier
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
-
-        # Create a transparent overlay for drawing
-        overlay = Image.new("RGBA", user_image.size, (255, 255, 255, 0))
-        draw = ImageDraw.Draw(overlay)
-
-        # Get text dimensions
+        
+        draw = ImageDraw.Draw(user_image)
         text_width, text_height = draw.textsize(text, font=font)
-        x, y = text_position
+        
+        # Apply position adjustments
+        x = text_position[0]
+        y = text_position[1]
 
-        # Define the outline effect parameters
-        base_outline_width = 8  # Base thickness
-        outline_color = "black"
+        # Outline effect in white (shadow effect)
+        outline_width = 3
+        for dx in [-outline_width, outline_width]:
+            for dy in [-outline_width, outline_width]:
+                draw.text((x + dx, y + dy), text, font=font, fill="white")
 
-        # Function to vary the outline thickness using random variations
-        def get_variable_outline():
-            return int(base_outline_width * random.uniform(0.5, 1.5))
-
-        # Draw the variable outline
-        for dx in range(-base_outline_width * 2, base_outline_width * 2 + 1):
-            for dy in range(-base_outline_width * 2, base_outline_width * 2 + 1):
-                distance = (dx**2 + dy**2)**0.5
-                variable_width = get_variable_outline()
-                if distance <= variable_width:
-                    draw.text((x + dx, y + dy), text, font=font, fill=outline_color)
-
-        # Draw the main text
+        # Apply main text color
         draw.text((x, y), text, font=font, fill=text_color)
-
-        # Combine the overlay with the original image
-        combined_image = Image.alpha_composite(user_image, overlay)
 
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
-            combined_image.save(output_path, "PNG")
-
+            user_image.save(output_path, "PNG")
+        
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
@@ -211,20 +199,32 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
 
-    # Save updated user data
+    # Font selection logic
+    if callback_query.data == "font_deadly_advance_italic":
+        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
+    elif callback_query.data == "font_deadly_advance":
+        user_data['font'] = "fonts/Deadly Advance.ttf"
+    elif callback_query.data == "font_trick_or_treats":
+        user_data['font'] = "fonts/Trick or Treats.ttf"
+    elif callback_query.data == "font_vampire_wars_italic":
+        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
+    elif callback_query.data == "font_lobster":
+        user_data['font'] = "fonts/Lobster-Regular.ttf"
+
     await save_user_data(user_id, user_data)
 
-    # Generate the updated logo
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    # Regenerate the logo with the new adjustments
+    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")  # Default to Deadly Advance font if no font is set
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
-        await callback_query.answer("Error generating the updated logo. Please try again.")
+        await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path))
+    # Keep the buttons and update the image
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard())
     await callback_query.answer()
 
-# Start the bot
 if __name__ == "__main__":
     app.run()
     
