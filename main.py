@@ -61,7 +61,23 @@ def get_adjustment_keyboard(final_image_path=None):
     
     return InlineKeyboardMarkup(buttons)
 
-# Add text to image with adjustments and color
+# Apply Blur Effect to the Background Image Only (no blur on text)
+async def apply_blur(photo_path, blur_intensity):
+    try:
+        image = Image.open(photo_path).convert("RGBA")
+        
+        # Create a blurred version of the background
+        blurred_image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
+
+        # Save the blurred image temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+            blurred_image.save(temp_file, "PNG")
+            return temp_file.name
+    except Exception as e:
+        logger.error(f"Error applying blur: {e}")
+        return None
+
+# Add text to image with adjustments and color (This ensures text is on top of the image, no blur)
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
@@ -87,7 +103,7 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         # Apply main text color
         draw.text((x, y), text, font=font, fill=text_color)
 
-        # Save the image to a temporary file
+        # Save the image with text (this should be added after blur is applied to keep text sharp)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
             user_image.save(output_path, "PNG")
@@ -95,23 +111,6 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
-        return None
-
-# Apply Blur Effect to the Background Image Only (no blur on text)
-async def apply_blur(photo_path, blur_intensity):
-    try:
-        image = Image.open(photo_path).convert("RGBA")
-        
-        # Create a blurred version of the background
-        blurred_image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
-
-        # Save the blurred image temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
-            blurred_image.save(temp_file, "PNG")
-            return temp_file.name
-
-    except Exception as e:
-        logger.error(f"Error applying blur: {e}")
         return None
 
 # Save user data
@@ -180,13 +179,15 @@ async def text_handler(_, message: Message) -> None:
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
     text_color = ImageColor.getrgb(user_data['text_color'])
     
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], text_color)
-
-    # Apply blur only on image
+    # Apply blur if needed
+    output_path = user_data['photo_path']
     if user_data['blur_intensity'] > 0:
         blurred_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
         if blurred_image_path:
             output_path = blurred_image_path
+
+    # Now add text to the blurred image (if blurred) or original image
+    output_path = await add_text_to_image(output_path, user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], text_color)
 
     await message.reply_photo(output_path, caption="❖ ʏᴏᴜʀ ʟᴏɢᴏ ᴄʜᴀɴɢɪɴɢ....!", reply_markup=get_adjustment_keyboard(output_path))
     await message.delete()
@@ -250,18 +251,20 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     # Regenerate the logo with the new adjustments
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-
-    # Apply blur if needed
+    text_color = ImageColor.getrgb(user_data['text_color'])
+    
+    output_path = user_data['photo_path']
     if user_data['blur_intensity'] > 0:
         blurred_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
         if blurred_image_path:
             output_path = blurred_image_path
 
-    # Update image with new adjustments
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="❖ ʟᴏɢᴏ ᴄʜᴀɴɢɪɴɢ....!"), reply_markup=get_adjustment_keyboard())
-    await callback_query.answer()
+    # Now add text to the blurred image (if blurred) or original image
+    output_path = await add_text_to_image(output_path, user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], text_color)
 
+    await callback_query.message.edit_media(InputMediaPhoto(output_path), reply_markup=get_adjustment_keyboard(output_path))
+    await callback_query.answer()
+    
 if __name__ == "__main__":
     app.run()
-
+        
