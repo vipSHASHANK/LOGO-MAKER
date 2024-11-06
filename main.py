@@ -52,7 +52,7 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("🔶 Gold", callback_data="color_gold")]
     ])
 
-# Add text to image with adjustments and color
+# Add text to image with adjustments and color, including shadow effect
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
@@ -69,7 +69,14 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         x = text_position[0]
         y = text_position[1]
 
-        # Outline effect in white
+        # Shadow effect: using a darker color (gray/black) for the shadow
+        shadow_offset = 5
+        shadow_color = (0, 0, 0)  # Black shadow color (you can use a darker color if you prefer)
+        for dx in [-shadow_offset, shadow_offset]:
+            for dy in [-shadow_offset, shadow_offset]:
+                draw.text((x + dx, y + dy), text, font=font, fill=shadow_color)
+
+        # White outline effect (original effect)
         outline_width = 3
         for dx in [-outline_width, outline_width]:
             for dy in [-outline_width, outline_width]:
