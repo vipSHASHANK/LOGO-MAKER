@@ -256,19 +256,19 @@ async def callback_handler(_, callback_query: CallbackQuery):
         image.save(jpg_path, "JPEG")
 
         # Send the final logo JPG to the user
-        await callback_query.message.reply_document(jpg_path, caption="Here is your final logo!")
+        await callback_query.message.reply_document(jpg_path, caption="❖ ᴛʜɪs ɪs ʏᴏᴜʀ ғɪɴᴀʟ ʟᴏɢᴏ!")
 
         # Clean up the generated files
         os.remove(output_path)
         os.remove(jpg_path)
 
         # Remove the buttons after sending the final image
-        await callback_query.message.edit_text("Your logo is ready for download. Enjoy!", reply_markup=None)
+        await callback_query.message.edit_text("❖ ʏᴏᴜʀ ʟᴏɢᴏ ɪs ʀᴇᴀᴅʏ ғᴏʀ ᴅᴏᴡɴʟᴏᴀᴅ. ᴇɴᴊᴏʏ 😘!", reply_markup=None)
         await callback_query.answer()
         return
 
     # If the button was not download, update the image with new changes
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard())
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="❖ ʟᴏɢᴏ ᴄʜᴀɴɢɪɴɢ....!"), reply_markup=get_adjustment_keyboard())
     await callback_query.answer()
 
 if __name__ == "__main__":
