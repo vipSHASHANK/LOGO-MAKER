@@ -35,9 +35,21 @@ def get_adjustment_keyboard():
         [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
          InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
         [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
-         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
-         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
-         InlineKeyboardButton("⚫ Black", callback_data="color_black")]
+         InlineKeyboardButton("🟦 Blue", callback_data="color_blue"),
+         InlineKeyboardButton("🟩 Green", callback_data="color_green"),
+         InlineKeyboardButton("⚫ Black", callback_data="color_black")],
+        [InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
+         InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
+         InlineKeyboardButton("🟣 Purple", callback_data="color_purple"),
+         InlineKeyboardButton("🟤 Brown", callback_data="color_brown")],
+        [InlineKeyboardButton("🟩 Lime", callback_data="color_lime"),
+         InlineKeyboardButton("🟦 Navy", callback_data="color_navy"),
+         InlineKeyboardButton("🟩 Teal", callback_data="color_teal"),
+         InlineKeyboardButton("🟥 Pink", callback_data="color_pink")],
+        [InlineKeyboardButton("🟧 Amber", callback_data="color_amber"),
+         InlineKeyboardButton("🟨 Tan", callback_data="color_tan"),
+         InlineKeyboardButton("🟥 Maroon", callback_data="color_maroon"),
+         InlineKeyboardButton("🔶 Gold", callback_data="color_gold")]
     ])
 
 # Add text to image with adjustments and color
@@ -180,22 +192,42 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['text_color'] = "green"
     elif callback_query.data == "color_black":
         user_data['text_color'] = "black"
+    elif callback_query.data == "color_yellow":
+        user_data['text_color'] = "yellow"
+    elif callback_query.data == "color_orange":
+        user_data['text_color'] = "orange"
+    elif callback_query.data == "color_purple":
+        user_data['text_color'] = "purple"
+    elif callback_query.data == "color_brown":
+        user_data['text_color'] = "brown"
+    elif callback_query.data == "color_lime":
+        user_data['text_color'] = "lime"
+    elif callback_query.data == "color_navy":
+        user_data['text_color'] = "navy"
+    elif callback_query.data == "color_teal":
+        user_data['text_color'] = "teal"
+    elif callback_query.data == "color_pink":
+        user_data['text_color'] = "pink"
+    elif callback_query.data == "color_amber":
+        user_data['text_color'] = "amber"
+    elif callback_query.data == "color_tan":
+        user_data['text_color'] = "tan"
+    elif callback_query.data == "color_maroon":
+        user_data['text_color'] = "maroon"
+    elif callback_query.data == "color_gold":
+        user_data['text_color'] = "gold"
 
     await save_user_data(user_id, user_data)
 
-    # Re-generate the image with new adjustments
+    # Regenerate the logo with the new adjustments
     font_path = "fonts/FIGHTBACK.ttf"
-    text_color = ImageColor.getrgb(user_data.get("text_color", "red"))  # default to red
-    output_path = await add_text_to_image(
-        user_data['photo_path'], user_data['text'], None, font_path, 
-        user_data['text_position'], user_data['size_multiplier'], text_color
-    )
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path), reply_markup=get_adjustment_keyboard())
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"))
     await callback_query.answer()
 
 # Start the bot
