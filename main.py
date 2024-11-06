@@ -190,21 +190,113 @@ async def position_callback(_, callback_query):
     user_data['text_position'] = position
     await save_user_data(user_id, user_data)
 
-    await callback_query.answer(f"Position set to {position}!")
-    await callback_query.message.edit_text(f"Position: {position}. Now, choose size and color!")
+    # Re-generate logo with new position
+    local_path = user_data['photo_path']
+    text = user_data['text']
+    size_multiplier = user_data['size_multiplier']
+    glow_color = user_data['glow_color']
+    new_logo_path = await add_text_to_image(local_path, text, None, 
+                                             x_offset=position[0], y_offset=position[1],
+                                             size_multiplier=size_multiplier, text_color=glow_color)
+
+    if new_logo_path is None:
+        await callback_query.message.edit_text("There was an error generating the logo.")
+        return
+
+    # Send the updated image with new buttons
+    position_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Left", callback_data="position_left"),
+            InlineKeyboardButton("Right", callback_data="position_right")
+        ],
+        [
+            InlineKeyboardButton("Up", callback_data="position_up"),
+            InlineKeyboardButton("Down", callback_data="position_down")
+        ]
+    ])
+
+    size_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
+            InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
+        ]
+    ])
+
+    color_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Red", callback_data="color_red"),
+            InlineKeyboardButton("Blue", callback_data="color_blue"),
+            InlineKeyboardButton("White", callback_data="color_white")
+        ]
+    ])
+
+    # Combine all buttons into one list of lists
+    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
+
+    # Send the updated logo with buttons
+    await callback_query.message.edit_photo(photo=new_logo_path, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    await callback_query.answer(f"Position updated to {position}!")
+
 
 @app.on_callback_query(filters.regex("size_"))
 async def size_callback(_, callback_query):
     user_id = callback_query.from_user.id
-    size = callback_query.data.split("_")[1]
+    size = float(callback_query.data.split("_")[1])  # Zoom multiplier
     user_data = await get_user_data(user_id)
 
     # Update user data with new size
-    user_data['size_multiplier'] = float(size)
+    user_data['size_multiplier'] = size
     await save_user_data(user_id, user_data)
 
-    await callback_query.answer(f"Size multiplier set to {size}!")
-    await callback_query.message.edit_text(f"Size: {size}. Now, choose color!")
+    # Re-generate logo with new size
+    local_path = user_data['photo_path']
+    text = user_data['text']
+    position = user_data['text_position']
+    glow_color = user_data['glow_color']
+    new_logo_path = await add_text_to_image(local_path, text, None, 
+                                             x_offset=position[0], y_offset=position[1],
+                                             size_multiplier=size, text_color=glow_color)
+
+    if new_logo_path is None:
+        await callback_query.message.edit_text("There was an error generating the logo.")
+        return
+
+    # Send the updated image with new buttons
+    position_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Left", callback_data="position_left"),
+            InlineKeyboardButton("Right", callback_data="position_right")
+        ],
+        [
+            InlineKeyboardButton("Up", callback_data="position_up"),
+            InlineKeyboardButton("Down", callback_data="position_down")
+        ]
+    ])
+
+    size_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
+            InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
+        ]
+    ])
+
+    color_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Red", callback_data="color_red"),
+            InlineKeyboardButton("Blue", callback_data="color_blue"),
+            InlineKeyboardButton("White", callback_data="color_white")
+        ]
+    ])
+
+    # Combine all buttons into one list of lists
+    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
+
+    # Send the updated logo with buttons
+    await callback_query.message.edit_photo(photo=new_logo_path, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    await callback_query.answer(f"Size updated to {size}!")
+
 
 @app.on_callback_query(filters.regex("color_"))
 async def color_callback(_, callback_query):
@@ -216,8 +308,53 @@ async def color_callback(_, callback_query):
     user_data['glow_color'] = color
     await save_user_data(user_id, user_data)
 
-    await callback_query.answer(f"Glow color set to {color}!")
-    await callback_query.message.edit_text(f"Glow color: {color}. Your logo is ready!")
+    # Re-generate logo with new color
+    local_path = user_data['photo_path']
+    text = user_data['text']
+    position = user_data['text_position']
+    size_multiplier = user_data['size_multiplier']
+    new_logo_path = await add_text_to_image(local_path, text, None, 
+                                             x_offset=position[0], y_offset=position[1],
+                                             size_multiplier=size_multiplier, text_color=color)
+
+    if new_logo_path is None:
+        await callback_query.message.edit_text("There was an error generating the logo.")
+        return
+
+    # Send the updated image with new buttons
+    position_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Left", callback_data="position_left"),
+            InlineKeyboardButton("Right", callback_data="position_right")
+        ],
+        [
+            InlineKeyboardButton("Up", callback_data="position_up"),
+            InlineKeyboardButton("Down", callback_data="position_down")
+        ]
+    ])
+
+    size_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
+            InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
+        ]
+    ])
+
+    color_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Red", callback_data="color_red"),
+            InlineKeyboardButton("Blue", callback_data="color_blue"),
+            InlineKeyboardButton("White", callback_data="color_white")
+        ]
+    ])
+
+    # Combine all buttons into one list of lists
+    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
+
+    # Send the updated logo with buttons
+    await callback_query.message.edit_photo(photo=new_logo_path, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    await callback_query.answer(f"Color updated to {color}!")
 
 # Start the bot
 app.run()
