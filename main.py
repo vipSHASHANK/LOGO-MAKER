@@ -34,8 +34,8 @@ def get_dynamic_font(image, text, max_width, max_height, font_path=None):
         font_size -= 5
     return font, text_width, text_height
 
-# Add text to image without 3D effect
-async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, text_color="white", font_path=None):
+# Add text to image with red and white brush effect
+async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, text_color="red", font_path=None):
     try:
         # Open the image
         user_image = Image.open(photo_path).convert("RGBA")
@@ -49,13 +49,20 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         text_height = int(text_height * size_multiplier)
         
         # Ensure x_offset and y_offset are integers
-        x = (max_width - text_width) // 2 + int(x_offset)  # Ensure x_offset is an integer
-        y = (max_height - text_height) // 2 + int(y_offset)  # Ensure y_offset is an integer
+        x = (max_width - text_width) // 2 + int(x_offset)
+        y = (max_height - text_height) // 2 + int(y_offset)
         text_position = (x, y)
 
-        # Draw the text onto the image
+        # Draw the red brush text
         draw = ImageDraw.Draw(user_image)
         draw.text(text_position, text, font=font, fill=text_color)
+
+        # Add white brush effect around the red text
+        white_offset = 2  # white color brush around the text
+        draw.text((x - white_offset, y - white_offset), text, font=font, fill="white")
+        draw.text((x + white_offset, y - white_offset), text, font=font, fill="white")
+        draw.text((x - white_offset, y + white_offset), text, font=font, fill="white")
+        draw.text((x + white_offset, y + white_offset), text, font=font, fill="white")
 
         # Save the image to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
@@ -199,31 +206,29 @@ async def zoom_callback(_, callback_query):
     zoom = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
-    # Adjust size with zoom (2x effect for zooming in/out)
+    # Update size multiplier for zoom
     if zoom == "in":
-        user_data['size_multiplier'] *= 2  # Double the text size
+        user_data['size_multiplier'] *= 2  # Zoom In increases text size
     elif zoom == "out":
-        user_data['size_multiplier'] *= 0.5  # Half the text size
-
-    # Save updated user data with new size multiplier
+        user_data['size_multiplier'] *= 0.5  # Zoom Out decreases text size
     await save_user_data(user_id, user_data)
 
-    # Recreate the logo with the new size multiplier
+    await callback_query.answer(f"Zoom {zoom} applied!")
+
+    # Regenerate the logo with the new size multiplier
     local_path = user_data['photo_path']
     text = user_data['text']
     position = user_data['text_position']
+    size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
 
-    # Generate the new logo with the updated size multiplier
-    new_logo_path = await add_text_to_image(local_path, text, None,
-                                             x_offset=position[0], y_offset=position[1],
-                                             size_multiplier=user_data['size_multiplier'], text_color=glow_color)
+    output_path = await add_text_to_image(local_path, text, None, x_offset=position[0], y_offset=position[1], size_multiplier=size_multiplier, text_color=glow_color)
 
-    if new_logo_path is None:
+    if output_path is None:
         await callback_query.message.edit_text("There was an error generating the logo.")
         return
 
-    # Prepare the buttons to show after zooming
+    # Define the buttons again
     position_buttons = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Left", callback_data="position_left"),
@@ -250,17 +255,11 @@ async def zoom_callback(_, callback_query):
         ]
     ])
 
-    # Combine all buttons
     keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
     # Update the message with the new logo and buttons
-    media = InputMediaPhoto(media=new_logo_path)
-    await callback_query.message.edit_media(
-        media=media,
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-    await callback_query.answer(f"Zoom {zoom} applied!")
+    media = InputMediaPhoto(media=output_path)
+    await callback_query.message.edit_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
 
 @app.on_callback_query(filters.regex("color_"))
 async def color_callback(_, callback_query):
