@@ -26,7 +26,7 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Define inline keyboard for adjustments with color, font, and blur options
+# Define inline keyboard for adjustments with color options
 def get_adjustment_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
@@ -43,35 +43,18 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("⚫ Black", callback_data="color_black"),
          InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
          InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
-         InlineKeyboardButton("🟣 Purple", callback_data="color_purple"),
-         InlineKeyboardButton("🟤 Brown", callback_data="color_brown")],
+         InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
         
-        [InlineKeyboardButton("🟤 Maroon", callback_data="color_maroon"),
-         InlineKeyboardButton("💖 Pink", callback_data="color_pink"),
-         InlineKeyboardButton("🟡 Gold", callback_data="color_gold"),
-         InlineKeyboardButton("🟢 Lime", callback_data="color_lime"),
-         InlineKeyboardButton("🟩 Mint", callback_data="color_mint"),
-         InlineKeyboardButton("🟦 Sky Blue", callback_data="color_sky_blue"),
-         InlineKeyboardButton("🟩 Teal", callback_data="color_teal"),
-         InlineKeyboardButton("🟪 Violet", callback_data="color_violet")],
+        # Blur effect buttons
+        [InlineKeyboardButton("🔵 Blur -", callback_data="blur_decrease"),
+         InlineKeyboardButton("🔴 Blur +", callback_data="blur_increase")],
         
-        [InlineKeyboardButton("🔶 Amber", callback_data="color_amber"),
-         InlineKeyboardButton("🔷 Turquoise", callback_data="color_turquoise"),
-         InlineKeyboardButton("🟧 Peach", callback_data="color_peach"),
-         InlineKeyboardButton("🔴 Burgundy", callback_data="color_burgundy"),
-         InlineKeyboardButton("🟤 Coffee", callback_data="color_coffee"),
-         InlineKeyboardButton("🟡 Mustard", callback_data="color_mustard")],
-
         # Font selection buttons
         [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
          InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
          InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
          InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
          InlineKeyboardButton("Lobster", callback_data="font_lobster")],
-
-        # Blur adjustment buttons
-        [InlineKeyboardButton("Blur -", callback_data="blur_decrease"),
-         InlineKeyboardButton("Blur +", callback_data="blur_increase")],
 
         # Download button
         [InlineKeyboardButton("Download JPG", callback_data="download_jpg")]
@@ -123,7 +106,7 @@ async def add_text_to_image(photo_path, text, font_path, text_position, size_mul
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Function to convert image to JPG format
+# Convert image to JPG format (keeping final image with text and modifications)
 def convert_to_jpg(png_path):
     try:
         # Open the PNG image
@@ -195,7 +178,7 @@ async def text_handler(_, message: Message) -> None:
         return
     
     if user_data['text']:
-        await message.reply_text("You have already entered text for your logo. Proceed with position adjustments.")
+        await message.reply_text("You have already entered text for the logo. Proceed with position adjustments.")
         return
 
     user_text = message.text.strip()
@@ -206,7 +189,7 @@ async def text_handler(_, message: Message) -> None:
     await save_user_data(user_id, user_data)
 
     # Generate logo and show adjustment options
-    font_path = user_data['font']
+    font_path = user_data['font']  # Default to Deadly Advance font if not set
     output_path = await add_text_to_image(user_data['photo_path'], user_text, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_radius'])
 
     if output_path is None:
@@ -256,14 +239,23 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "blur_increase":
         user_data['blur_radius'] += 1  # Increase blur radius
     elif callback_query.data == "download_jpg":
-        # Convert the current image to JPG and send it
-        png_path = user_data.get("photo_path")
-        jpg_path = convert_to_jpg(png_path)
-        if jpg_path:
-            with open(jpg_path, "rb") as jpg_file:
-                await callback_query.message.reply_document(jpg_file, caption="Here is your logo as a JPG file.")
-            os.remove(jpg_path)  # Clean up the temporary JPG file after sending it
-            return
+        # Convert the current final image to JPG and send it
+        final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_radius'])
+        
+        if final_image_path:
+            # Convert to JPG
+            jpg_path = convert_to_jpg(final_image_path)
+            if jpg_path:
+                with open(jpg_path, "rb") as jpg_file:
+                    await callback_query.message.reply_document(jpg_file, caption="Here is your logo as a JPG file.")
+                os.remove(jpg_path)  # Clean up the temporary JPG file after sending it
+                os.remove(final_image_path)  # Clean up the temporary PNG file after sending it
+            else:
+                await callback_query.message.reply_text("Error converting image to JPG.")
+        else:
+            await callback_query.message.reply_text("Error generating the final logo.")
+
+        return
 
     await save_user_data(user_id, user_data)
 
@@ -281,4 +273,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
-    
+        
