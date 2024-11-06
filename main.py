@@ -198,54 +198,11 @@ async def callback_handler(_, callback_query: CallbackQuery):
         return
 
     # Process callback data based on button pressed (Move, Size, Color, etc.)
-    if callback_query.data.startswith("font_"):
-        font_map = {
-            "font_deadly_advance_italic": "fonts/Deadly Advance Italic.ttf",
-            "font_deadly_advance": "fonts/Deadly Advance.ttf",
-            "font_trick_or_treats": "fonts/Trick or Treats.ttf",
-            "font_vampire_wars_italic": "fonts/Vampire Wars Italic.ttf",
-            "font_lobster": "fonts/Lobster.ttf"
-        }
-
-        font_name = callback_query.data
-        if font_name in font_map:
-            user_data['font'] = font_map[font_name]
-            await save_user_data(user_id, user_data)
-
-            # Regenerate the image with the new font
-            output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-
-            if output_path:
-                # Send the updated photo with new font and adjustments
-                try:
-                    await callback_query.message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
-                except Exception as e:
-                    await callback_query.message.reply_text(f"Error: {str(e)}")
-            else:
-                await callback_query.answer("Failed to generate logo with new font.", show_alert=True)
-
-            await callback_query.answer()
-
-    # Handle blur adjustments
-    if callback_query.data == "blur_plus":
-        user_data['blur_intensity'] += 1
-    elif callback_query.data == "blur_minus":
-        user_data['blur_intensity'] -= 1
-
-    # Apply blur effect
-    final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-    final_image_path = await apply_blur(final_image_path, user_data['blur_intensity'])
-
-    # Send the updated image
-    await callback_query.message.reply_photo(photo=final_image_path, reply_markup=get_adjustment_keyboard())
-
-    await callback_query.answer()
-
-    # Handle download button
     if callback_query.data == "download_logo":
         # Regenerate the image with the user's settings
         final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-        final_image_path = await apply_blur(final_image_path, user_data['blur_intensity'])
+        final_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
+        final_image_path = await add_text_to_image(final_image_path, user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
         # Convert to JPG format for download
         jpg_path = final_image_path.replace(".png", ".jpg")
@@ -264,3 +221,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 # Start the bot
 app.run()
+    
