@@ -1,37 +1,37 @@
-# buttons.py
-
+# button.py
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-def get_adjustment_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
-         InlineKeyboardButton("➡️ Right", callback_data="move_right")],
-        [InlineKeyboardButton("⬆️ Up", callback_data="move_up"),
-         InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
-        [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
-         InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
+def get_adjustment_keyboard(final_image_path=None):
+    buttons = [
+        [InlineKeyboardButton("↼ʟᴇғᴛ", callback_data="move_left"),
+         InlineKeyboardButton("ʀɪɢʜᴛ⇁", callback_data="move_right")],
+        [InlineKeyboardButton("↿ᴜᴘ", callback_data="move_up"),
+         InlineKeyboardButton("⇃ᴅᴏᴡɴ", callback_data="move_down")],
+        [InlineKeyboardButton("⛶ ✙", callback_data="increase_size"),
+         InlineKeyboardButton("⛶ –", callback_data="decrease_size")],
         
         # Color selection buttons
-        [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
-         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
-         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
-         InlineKeyboardButton("⚫ Black", callback_data="color_black"),
-         InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
-         InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
-         InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
-        
-        # Blur effect buttons
-        [InlineKeyboardButton("🔵 Blur -", callback_data="blur_decrease"),
-         InlineKeyboardButton("🔴 Blur +", callback_data="blur_increase")],
+        [InlineKeyboardButton("🔴", callback_data="color_red"),
+         InlineKeyboardButton("🔵", callback_data="color_blue"),
+         InlineKeyboardButton("🟢", callback_data="color_green"),
+         InlineKeyboardButton("⚫", callback_data="color_black"),
+         InlineKeyboardButton("🟡", callback_data="color_yellow"),
+         InlineKeyboardButton("🟠", callback_data="color_orange"),
+         InlineKeyboardButton("🟣", callback_data="color_purple")],
         
         # Font selection buttons
-        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
-         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
-         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
-         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
-         InlineKeyboardButton("Lobster", callback_data="font_lobster")],
+        [InlineKeyboardButton("🄵ᴀ", callback_data="font_deadly_advance_italic"),
+         InlineKeyboardButton("🄵ʙ", callback_data="font_deadly_advance"),
+         InlineKeyboardButton("🄵ᴄ", callback_data="font_trick_or_treats"),
+         InlineKeyboardButton("🄵ᴅ", callback_data="font_vampire_wars_italic"),
+         InlineKeyboardButton("🄵ᴇ", callback_data="font_lobster")],
+        
+        # Blur buttons
+        [InlineKeyboardButton("ʙʟᴜʀ +", callback_data="blur_plus"),
+         InlineKeyboardButton("ʙʟᴜʀ -", callback_data="blur_minus")],
 
-        # Download button
-        [InlineKeyboardButton("Download JPG", callback_data="download_jpg")]
-    ])
-  
+        # Always show the Download button
+        [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ ʏᴏᴜʀ ʟᴏɢᴏ", callback_data="download_logo")]
+    ]
+    
+    return InlineKeyboardMarkup(buttons)
