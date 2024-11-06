@@ -164,7 +164,7 @@ async def text_handler(_, message: Message) -> None:
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("❖ ғɪʀsᴛ sᴇɴᴅ ᴍᴇ ᴀ ᴘʜᴏᴛᴏ ғᴏʀ ʟᴏɢᴏ ʙᴀᴄᴋɢʀᴏᴜᴅ.")
+        await message.reply_text("❖ ғɪʀsᴛ sᴇɴᴅ ᴍᴇ ᴀ ᴘʜᴏᴛᴏ ғᴏʀ ʟᴏɢᴏ ʙᴀᴄᴋɢʀᴏᴜɴᴅ.")
         return
     
     if user_data['text']:
