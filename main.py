@@ -53,7 +53,7 @@ def get_adjustment_keyboard():
     ])
 
 # Add text to image with adjustments and color
-async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
+async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
@@ -69,14 +69,14 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         x = text_position[0]
         y = text_position[1]
 
-        # Outline effect in white (shadow effect)
+        # Outline effect
         outline_width = 3
         for dx in [-outline_width, outline_width]:
             for dy in [-outline_width, outline_width]:
                 draw.text((x + dx, y + dy), text, font=font, fill="white")
 
-        # Apply main text color
-        draw.text((x, y), text, font=font, fill=text_color)
+        # Red main text
+        draw.text((x, y), text, font=font, fill="red")
 
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
