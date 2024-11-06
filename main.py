@@ -25,12 +25,6 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Apply blur to image
-def apply_blur(image, blur_level):
-    if blur_level > 0:
-        return image.filter(ImageFilter.GaussianBlur(radius=blur_level))
-    return image
-
 # Define inline keyboard for adjustments with color options
 def get_adjustment_keyboard(blur_level):
     return InlineKeyboardMarkup([
@@ -49,25 +43,38 @@ def get_adjustment_keyboard(blur_level):
          InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
          InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
          InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
+        
+        # Font selection buttons
+        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
+         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
+         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
+         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
+         InlineKeyboardButton("Lobster", callback_data="font_lobster")],
 
-        # Blur adjustment buttons
-        [InlineKeyboardButton("🔘 Blur -", callback_data="blur_minus"),
-         InlineKeyboardButton("🔘 Blur +", callback_data="blur_plus")]
+        # Blur level control
+        [InlineKeyboardButton("Blur +", callback_data="blur_plus"),
+         InlineKeyboardButton("Blur -", callback_data="blur_minus")]
     ])
 
-# Add text to image with adjustments and color
+# Add text to image with adjustments and blur effect
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color, blur_level):
     try:
+        # Open the image and convert it to RGBA
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
 
-        # Adjust font size based on size_multiplier
+        # Apply blur only to the background (not text)
+        image_copy = user_image.copy()  # Create a copy to blur the background
+        if blur_level > 0:
+            image_copy = image_copy.filter(ImageFilter.GaussianBlur(radius=blur_level))
+
+        # Add the text to the original (non-blurred) image
+        draw = ImageDraw.Draw(user_image)
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
-        
-        draw = ImageDraw.Draw(user_image)
+
         text_width, text_height = draw.textsize(text, font=font)
-        
+
         # Apply position adjustments
         x = text_position[0]
         y = text_position[1]
@@ -81,10 +88,10 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         # Apply main text color
         draw.text((x, y), text, font=font, fill=text_color)
 
-        # Apply blur effect based on the blur level
-        user_image = apply_blur(user_image, blur_level)
+        # Merge the blurred background with the text on top
+        user_image = Image.alpha_composite(image_copy, user_image)
 
-        # Save the image
+        # Save the image to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
             user_image.save(output_path, "PNG")
@@ -232,6 +239,6 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     await callback_query.answer()
 
-if __name__ == "__main__":
-    app.run()
+# Start the bot
+app.run()
     
