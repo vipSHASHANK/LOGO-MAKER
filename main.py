@@ -197,38 +197,14 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Please upload a photo first.", show_alert=True)
         return
 
-    # Process callback data based on button pressed (Move, Size, Color, etc.)
-    if callback_query.data == "download_logo":
-        # Regenerate the image with the user's settings
-        final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-        final_image_path = await apply_blur(final_image_path, user_data['blur_intensity'])
-
-        # Convert to JPG format for download
-        jpg_path = final_image_path.replace(".png", ".jpg")
-        image = Image.open(final_image_path)
-        image = image.convert("RGB")
-        image.save(jpg_path, "JPEG")
-
-        # Send the final image to the user
-        await callback_query.message.reply_document(jpg_path, caption="Here is your final logo!")
-
-        # Optionally, delete the temporary files after sending the image
-        os.remove(final_image_path)
-        os.remove(jpg_path)
-
-        # Clean up the buttons after the download
-        await callback_query.message.edit_text("Your logo is ready for download. Enjoy!", reply_markup=None)
-
-        await callback_query.answer()
-
     # Font selection logic
-    elif callback_query.data.startswith("font_"):
+    if callback_query.data.startswith("font_"):
         font_map = {
             "font_deadly_advance_italic": "fonts/Deadly Advance Italic.ttf",
             "font_deadly_advance": "fonts/Deadly Advance.ttf",
             "font_trick_or_treats": "fonts/Trick or Treats.ttf",
             "font_vampire_wars_italic": "fonts/Vampire Wars Italic.ttf",
-            "font_lobster": "fonts/FIGHTBACK.ttf"
+            "font_lobster": "fonts/Lobster.ttf"
         }
 
         font_name = callback_query.data
@@ -243,6 +219,8 @@ async def callback_handler(_, callback_query: CallbackQuery):
             await callback_query.message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
             await callback_query.answer()
 
+    # Handle other callback queries here like "blur", "move", etc.
+    # ...
+
 # Start the bot
 app.run()
-        
