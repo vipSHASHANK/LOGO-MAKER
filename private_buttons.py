@@ -1,7 +1,7 @@
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Function to create color selection buttons
-def create_colour_buttons():
+def create_color_buttons():
     colour_buttons = [
         [InlineKeyboardButton("Red", callback_data="colour_red")],
         [InlineKeyboardButton("Green", callback_data="colour_green")],
