@@ -1,7 +1,7 @@
 import os
 import logging
 import tempfile
-from PIL import Image, ImageDraw, ImageFont, ImageColor
+from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageFilter
 from random import randint
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
@@ -26,7 +26,7 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Define inline keyboard for adjustments with color and font options
+# Define inline keyboard for adjustments with color, font, and blur options
 def get_adjustment_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
@@ -67,11 +67,15 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
          InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
          InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
-         InlineKeyboardButton("Lobster", callback_data="font_lobster")]
+         InlineKeyboardButton("Lobster", callback_data="font_lobster")],
+
+        # Blur adjustment buttons
+        [InlineKeyboardButton("Blur -", callback_data="blur_decrease"),
+         InlineKeyboardButton("Blur +", callback_data="blur_increase")],
     ])
 
-# Add text to image with "brushstroke" effect
-async def add_text_to_image(photo_path, text, font_path, text_position, size_multiplier, text_color):
+# Add text to image with "brushstroke" effect, and blur functionality
+async def add_text_to_image(photo_path, text, font_path, text_position, size_multiplier, text_color, blur_radius):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
@@ -80,7 +84,9 @@ async def add_text_to_image(photo_path, text, font_path, text_position, size_mul
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
         
-        draw = ImageDraw.Draw(user_image)
+        # Create a new image for text drawing (text will be drawn here)
+        text_image = Image.new("RGBA", user_image.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(text_image)
         text_width, text_height = draw.textsize(text, font=font)
         
         # Apply position adjustments
@@ -98,10 +104,16 @@ async def add_text_to_image(photo_path, text, font_path, text_position, size_mul
         # Main text in the chosen color
         draw.text((x, y), text, font=font, fill=text_color)
 
+        # Blur the background (excluding text)
+        blurred_image = user_image.filter(ImageFilter.GaussianBlur(blur_radius))
+
+        # Composite the blurred image with the text image
+        final_image = Image.alpha_composite(blurred_image, text_image)
+
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
-            user_image.save(output_path, "PNG")
+            final_image.save(output_path, "PNG")
         
         return output_path
     except Exception as e:
@@ -146,7 +158,7 @@ async def photo_handler(_, message: Message) -> None:
         text = await message.reply("Processing...")
         local_path = await media.download()
         await text.edit_text("Processing your logo...")
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf'})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf', 'blur_radius': 0})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         logger.error(e)
@@ -162,19 +174,19 @@ async def text_handler(_, message: Message) -> None:
         return
     
     if user_data['text']:
-        await message.reply_text("You have already entered text for your logo. Proceed with position adjustments.")
+        await message.reply_text("You have already entered text for the logo. Proceed with position adjustments.")
         return
 
     user_text = message.text.strip()
     if not user_text:
-        await message.reply_text("You need to provide text for your logo.")
+        await message.reply_text("You need to provide text for the logo.")
         return
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
 
     # Generate logo and show adjustment options
     font_path = user_data['font']  # Default to Deadly Advance font if not set
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_radius'])
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
@@ -218,54 +230,18 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['text_color'] = "orange"
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
-    elif callback_query.data == "color_brown":
-        user_data['text_color'] = "brown"
-    elif callback_query.data == "color_maroon":
-        user_data['text_color'] = "maroon"
-    elif callback_query.data == "color_pink":
-        user_data['text_color'] = "pink"
-    elif callback_query.data == "color_gold":
-        user_data['text_color'] = "gold"
-    elif callback_query.data == "color_lime":
-        user_data['text_color'] = "lime"
-    elif callback_query.data == "color_mint":
-        user_data['text_color'] = "mint"
-    elif callback_query.data == "color_sky_blue":
-        user_data['text_color'] = "skyblue"
-    elif callback_query.data == "color_teal":
-        user_data['text_color'] = "teal"
-    elif callback_query.data == "color_violet":
-        user_data['text_color'] = "violet"
-    elif callback_query.data == "color_amber":
-        user_data['text_color'] = "amber"
-    elif callback_query.data == "color_turquoise":
-        user_data['text_color'] = "turquoise"
-    elif callback_query.data == "color_peach":
-        user_data['text_color'] = "peach"
-    elif callback_query.data == "color_burgundy":
-        user_data['text_color'] = "burgundy"
-    elif callback_query.data == "color_coffee":
-        user_data['text_color'] = "coffee"
-    elif callback_query.data == "color_mustard":
-        user_data['text_color'] = "mustard"
 
-    # Font selection logic
-    if callback_query.data == "font_deadly_advance_italic":
-        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
-    elif callback_query.data == "font_deadly_advance":
-        user_data['font'] = "fonts/Deadly Advance.ttf"
-    elif callback_query.data == "font_trick_or_treats":
-        user_data['font'] = "fonts/Trick or Treats.ttf"
-    elif callback_query.data == "font_vampire_wars_italic":
-        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
-    elif callback_query.data == "font_lobster":
-        user_data['font'] = "fonts/FIGHTBACK.ttf"
+    # Blur handling
+    elif callback_query.data == "blur_decrease":
+        user_data['blur_radius'] = max(user_data['blur_radius'] - 1, 0)  # Prevent going below 0
+    elif callback_query.data == "blur_increase":
+        user_data['blur_radius'] += 1  # Increase blur radius
 
     await save_user_data(user_id, user_data)
 
     # Regenerate the logo with the new adjustments
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")  # Default to Deadly Advance font if no font is set
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_radius'])
 
     if output_path is None:
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
@@ -277,4 +253,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
-    
+        
