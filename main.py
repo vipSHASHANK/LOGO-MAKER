@@ -92,18 +92,18 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Apply Blur Effect to the Image (without affecting the text)
+# Apply Blur Effect to the Background Image (without affecting the text)
 async def apply_blur(photo_path, blur_intensity):
     try:
         image = Image.open(photo_path).convert("RGBA")
         
         # Apply blur effect to the image (not text)
-        image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
+        blurred_image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
 
-        # Save the modified image
+        # Save the modified image (blurred image)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
-            image.save(output_path, "PNG")
+            blurred_image.save(output_path, "PNG")
         
         return output_path
     except Exception as e:
@@ -249,7 +249,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    # Apply blur
+    # Apply blur effect to the background image (not the text)
     output_path = await apply_blur(output_path, user_data['blur_intensity'])
 
     # Update the media and keep the same buttons
