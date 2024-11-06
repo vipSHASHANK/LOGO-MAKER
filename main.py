@@ -25,24 +25,20 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# New function to apply blur effect to the image
-def apply_blur(image_path, apply_blur=True):
+# Apply blur based on the current blur level
+def apply_blur(image_path, blur_level):
     try:
         user_image = Image.open(image_path).convert("RGBA")
         
-        if apply_blur:
-            # Apply blur effect to the image (excluding text)
-            blurred_image = user_image.filter(ImageFilter.GaussianBlur(radius=10))
-            return blurred_image
-        else:
-            # Return the original image (remove blur)
-            return user_image
+        # Apply blur with a Gaussian blur filter, the level can be adjusted by the blur_level
+        blurred_image = user_image.filter(ImageFilter.GaussianBlur(radius=blur_level))
+        return blurred_image
     except Exception as e:
         logger.error(f"Error applying blur: {e}")
         return None
 
 # Define inline keyboard for adjustments with color options
-def get_adjustment_keyboard(apply_blur=False):
+def get_adjustment_keyboard(blur_level):
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
          InlineKeyboardButton("➡️ Right", callback_data="move_right")],
@@ -62,18 +58,24 @@ def get_adjustment_keyboard(apply_blur=False):
          InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
          InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
          InlineKeyboardButton("Lobster", callback_data="font_lobster")],
+        
         # Blur buttons
-        [InlineKeyboardButton("Blur+", callback_data="blur_on") if not apply_blur else InlineKeyboardButton("Blur-", callback_data="blur_off")],
+        [InlineKeyboardButton("Blur+", callback_data="blur_plus"),
+         InlineKeyboardButton("Blur-", callback_data="blur_minus")],
+        
         # Download button
         [InlineKeyboardButton("Download Logo", callback_data="download_logo")]
     ])
 
 # Add text to image with adjustments and color
-async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
+async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color, blur_level):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
 
+        # Apply blur if required
+        user_image = apply_blur(photo_path, blur_level)
+        
         # Adjust font size based on size_multiplier
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
@@ -142,7 +144,7 @@ async def photo_handler(_, message: Message) -> None:
         text = await message.reply("Processing...")
         local_path = await media.download()
         await text.edit_text("Processing your logo...")
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf', 'apply_blur': False})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf', 'blur_level': 0})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         logger.error(e)
@@ -170,13 +172,13 @@ async def text_handler(_, message: Message) -> None:
 
     # Generate logo and show adjustment options
     font_path = user_data['font']
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_level'])
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    await message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
+    await message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard(user_data['blur_level']))
 
 @app.on_callback_query()
 async def callback_handler(_, callback_query: CallbackQuery):
@@ -187,57 +189,55 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Please upload a photo first.", show_alert=True)
         return
 
-    # Handle blur toggle logic
-    if callback_query.data == "blur_on":
-        blurred_image = apply_blur(user_data['photo_path'], apply_blur=True)
-        if blurred_image:
-            blurred_image.save(user_data['photo_path'])
-            user_data['apply_blur'] = True
-        await save_user_data(user_id, user_data)
-    elif callback_query.data == "blur_off":
-        original_image = apply_blur(user_data['photo_path'], apply_blur=False)
-        if original_image:
-            original_image.save(user_data['photo_path'])
-            user_data['apply_blur'] = False
-        await save_user_data(user_id, user_data)
+    # Adjust position, size, or color based on button pressed
+    if callback_query.data == "move_left":
+        user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
+    elif callback_query.data == "move_right":
+        user_data['text_position'] = (user_data['text_position'][0] + 20, user_data['text_position'][1])
+    elif callback_query.data == "move_up":
+        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] - 20)
+    elif callback_query.data == "move_down":
+        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 20)
+    elif callback_query.data == "increase_size":
+        user_data['size_multiplier'] += 0.1
+    elif callback_query.data == "decrease_size":
+        user_data['size_multiplier'] -= 0.1
+    elif callback_query.data == "color_red":
+        user_data['text_color'] = "red"
+    elif callback_query.data == "color_blue":
+        user_data['text_color'] = "blue"
+    elif callback_query.data == "color_green":
+        user_data['text_color'] = "green"
+    elif callback_query.data == "color_black":
+        user_data['text_color'] = "black"
+    elif callback_query.data == "color_yellow":
+        user_data['text_color'] = "yellow"
+    elif callback_query.data == "color_orange":
+        user_data['text_color'] = "orange"
+    elif callback_query.data == "color_purple":
+        user_data['text_color'] = "purple"
 
-    # Regenerate the logo with the new adjustments
-    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    # Handle blur level increase and decrease
+    elif callback_query.data == "blur_plus":
+        user_data['blur_level'] += 10
+    elif callback_query.data == "blur_minus":
+        user_data['blur_level'] = max(0, user_data['blur_level'] - 10)
+
+    # Save updated user data
+    await save_user_data(user_id, user_data)
+
+    # Regenerate the logo with updated settings
+    font_path = user_data['font']
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_level'])
 
     if output_path is None:
-        await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
+        await callback_query.answer("Error regenerating the image.", show_alert=True)
         return
 
-    # Update image and keep the current buttons
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard(apply_blur=user_data.get('apply_blur', False)))
+    # Keep the buttons and update the image
+    await callback_query.message.edit_photo(photo=output_path, reply_markup=get_adjustment_keyboard(user_data['blur_level']))
     await callback_query.answer()
 
-# Function to handle the download logo button
-@app.on_callback_query(filters.regex("download_logo"))
-async def download_logo(_, callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    user_data = await get_user_data(user_id)
-
-    if not user_data or not user_data.get("photo_path"):
-        await callback_query.answer("Please upload a photo first.", show_alert=True)
-        return
-
-    # Convert final image to JPEG
-    try:
-        user_image = Image.open(user_data['photo_path']).convert("RGB")
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-        output_path = temp_file.name
-        user_image.save(output_path, "JPEG")
-
-        # Send the image to the user
-        with open(output_path, "rb") as file:
-            await callback_query.message.reply_document(file, caption="Here is your logo in JPG format.")
-        os.remove(output_path)  # Clean up the temporary file
-    except Exception as e:
-        logger.error(f"Error generating the JPG: {e}")
-        await callback_query.answer("There was an error generating the JPG file. Please try again.", show_alert=True)
-
-# Run the bot
-app.run()
-    
+if __name__ == "__main__":
+    app.run()
+        
