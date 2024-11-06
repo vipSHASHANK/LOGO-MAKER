@@ -53,7 +53,7 @@ def get_adjustment_keyboard():
     ])
 
 # Add text to image with adjustments and color
-async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier):
+async def add_text_to_image(photo_path, text, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
@@ -76,7 +76,7 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
                 draw.text((x + dx, y + dy), text, font=font, fill="white")
 
         # Red main text
-        draw.text((x, y), text, font=font, fill="red")
+        draw.text((x, y), text, font=font, fill=text_color)
 
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
@@ -154,7 +154,7 @@ async def text_handler(_, message: Message) -> None:
 
     # Generate logo and show adjustment options
     font_path = user_data['font']  # Default to Deadly Advance font if not set
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
@@ -215,7 +215,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     # Regenerate the logo with the new adjustments
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")  # Default to Deadly Advance font if no font is set
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
