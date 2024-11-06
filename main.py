@@ -37,25 +37,27 @@ def get_dynamic_font(image, text, max_width, max_height, font_path=None):
 # Add text to image without 3D effect
 async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, text_color="white", font_path=None):
     try:
+        # Open the image
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
+        
+        # Get the appropriate font and text size
         font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         
-        # Adjust text size based on multiplier
+        # Adjust the text size according to the size multiplier
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
         
-        # Center the text
-        x = (max_width - text_width) // 2 + x_offset
-        y = (max_height - text_height) // 2 + y_offset
+        # Ensure x_offset and y_offset are integers
+        x = (max_width - text_width) // 2 + int(x_offset)  # Ensure x_offset is an integer
+        y = (max_height - text_height) // 2 + int(y_offset)  # Ensure y_offset is an integer
         text_position = (x, y)
-        
+
+        # Draw the text onto the image
         draw = ImageDraw.Draw(user_image)
-        
-        # Add the text directly (no glow or 3D effect)
         draw.text(text_position, text, font=font, fill=text_color)
-        
-        # Use a temporary file for output
+
+        # Save the image to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
             user_image.save(output_path, "PNG")
@@ -139,7 +141,7 @@ async def text_handler(_, message: Message) -> None:
     glow_color = user_data['glow_color']
 
     # Use the simplified version of text addition
-    output_path = await add_text_to_image(local_path, text, None, position, size_multiplier, text_color=glow_color)
+    output_path = await add_text_to_image(local_path, text, None, x_offset=position[0], y_offset=position[1], size_multiplier=size_multiplier, text_color=glow_color)
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
