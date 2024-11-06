@@ -93,13 +93,16 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         return None
 
 # Apply Blur Effect to the Background Image (without affecting the text)
-async def apply_blur(photo_path, blur_intensity):
+async def apply_blur(photo_path, blur_intensity, text_position, text, font_path, size_multiplier, text_color):
     try:
         image = Image.open(photo_path).convert("RGBA")
         
         # Apply blur effect to the image (not text)
         blurred_image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
 
+        # Now, overlay the text on the blurred image
+        output_path = await add_text_to_image(photo_path, text, None, font_path, text_position, size_multiplier, text_color)
+        
         # Save the modified image (blurred image)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
@@ -250,7 +253,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
         return
 
     # Apply blur effect to the background image (not the text)
-    output_path = await apply_blur(output_path, user_data['blur_intensity'])
+    output_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'], user_data['text_position'], user_data['text'], user_data['font'], user_data['size_multiplier'], user_data['text_color'])
 
     # Update the media and keep the same buttons
     await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with changes!"), reply_markup=get_adjustment_keyboard())
@@ -258,3 +261,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 # Start the bot
 app.run()
+            
