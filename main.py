@@ -5,6 +5,9 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from config import Config
 from private_buttons import create_position_buttons, create_size_buttons, create_color_buttons
 
+# Default color if not provided
+DEFAULT_COLOR = "red"  # You can set any default color here.
+
 # User data store
 user_data_store = {}
 
@@ -18,24 +21,11 @@ app = Client(
     workdir=os.getcwd()
 )
 
-# Adjust font size dynamically
-def get_dynamic_font(image, text, max_width, max_height):
-    draw = ImageDraw.Draw(image)
-    font_size = 100
-    while font_size > 10:
-        try:
-            font = ImageFont.truetype("fonts/FIGHTBACK.ttf", font_size)
-        except Exception as e:
-            print(f"Error loading font: {e}")
-            return None, 0, 0
-        text_width, text_height = draw.textsize(text, font=font)
-        if text_width <= max_width and text_height <= max_height:
-            return font, text_width, text_height
-        font_size -= 5
-    return font, text_width, text_height
-
 # Add text to image
-async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red"):
+async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color=None):
+    # Use default color if none provided
+    glow_color = glow_color or DEFAULT_COLOR
+
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
@@ -79,7 +69,7 @@ async def photo_handler(_, message: Message) -> None:
     media = message
     try:
         local_path = await media.download()
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': DEFAULT_COLOR})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         await message.reply_text("File processing failed.")
@@ -110,13 +100,15 @@ async def text_handler(_, message: Message) -> None:
     position_buttons = create_position_buttons()
     size_buttons = create_size_buttons()
     color_buttons = create_color_buttons()
+
+    # Make sure to use a list of lists for InlineKeyboardMarkup
+    keyboard = InlineKeyboardMarkup([
+        position_buttons,  # List of buttons for position
+        size_buttons,      # List of buttons for size
+        color_buttons      # List of buttons for color
+    ])
     
-    await message.reply_text("Choose position, size, and color for the logo text:", 
-                             reply_markup=InlineKeyboardMarkup([
-                                 position_buttons,
-                                 size_buttons,
-                                 color_buttons
-                             ]))
+    await message.reply_text("Choose position, size, and color for the logo text:", reply_markup=keyboard)
 
 @app.on_message(filters.CallbackQuery)
 async def button_handler(_, callback_query):
