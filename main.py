@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from config import Config
+import tempfile
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -59,7 +60,11 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         text_position = (x, y)
         draw = ImageDraw.Draw(user_image)
         add_3d_text(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
-        user_image.save(output_path, "PNG")
+
+        # Use a temporary file for output
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+            output_path = temp_file.name
+            user_image.save(output_path, "PNG")
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
@@ -138,41 +143,44 @@ async def text_handler(_, message: Message) -> None:
     size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
 
-    output_path = f"output_logo_{user_id}.png"
-    await add_text_to_image(local_path, text, output_path, position, size_multiplier, glow_color)
+    output_path = await add_text_to_image(local_path, text, "", position, size_multiplier, glow_color)
 
-    # Define the position, size, and color buttons
-    position_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Left", callback_data="position_left"),
-            InlineKeyboardButton("Right", callback_data="position_right")
-        ],
-        [
-            InlineKeyboardButton("Up", callback_data="position_up"),
-            InlineKeyboardButton("Down", callback_data="position_down")
-        ]
-    ])
+    # Check if file exists before sending it
+    if output_path and os.path.exists(output_path):
+        # Define the position, size, and color buttons
+        position_buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Left", callback_data="position_left"),
+                InlineKeyboardButton("Right", callback_data="position_right")
+            ],
+            [
+                InlineKeyboardButton("Up", callback_data="position_up"),
+                InlineKeyboardButton("Down", callback_data="position_down")
+            ]
+        ])
 
-    size_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
-            InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
-        ]
-    ])
+        size_buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
+                InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
+            ]
+        ])
 
-    color_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Red", callback_data="color_red"),
-            InlineKeyboardButton("Blue", callback_data="color_blue"),
-            InlineKeyboardButton("White", callback_data="color_white")
-        ]
-    ])
+        color_buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Red", callback_data="color_red"),
+                InlineKeyboardButton("Blue", callback_data="color_blue"),
+                InlineKeyboardButton("White", callback_data="color_white")
+            ]
+        ])
 
-    # Combine all buttons into one list of lists
-    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
+        # Combine all buttons into one list of lists
+        keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
-    # Send the generated logo with buttons
-    await message.reply_photo(photo=output_path, reply_markup=InlineKeyboardMarkup(keyboard))
+        # Send the generated logo with buttons
+        await message.reply_photo(photo=output_path, reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await message.reply_text("Error: Could not generate the logo.")
 
 @app.on_callback_query(filters.regex("position_"))
 async def position_callback(_, callback_query):
@@ -220,12 +228,14 @@ async def color_callback(_, callback_query):
     size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
 
-    output_path = f"output_logo_{user_id}.png"
-    await add_text_to_image(local_path, text, output_path, position, size_multiplier, glow_color)
+    output_path = await add_text_to_image(local_path, text, "", position, size_multiplier, glow_color)
 
-    await callback_query.message.reply_photo(photo=output_path)
+    # Send the regenerated logo
+    if output_path and os.path.exists(output_path):
+        await callback_query.message.reply_photo(photo=output_path)
+    else:
+        await callback_query.message.reply_text("Error: Could not regenerate the logo.")
 
 # Initialize the Pyrogram Client
 if __name__ == "__main__":
     app.run()
-    
