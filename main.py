@@ -100,7 +100,7 @@ async def text_handler(_, message: Message) -> None:
                                  color_buttons
                              ]))
 
-@app.on_message(filters.callback_query & filters.private)
+@app.on_message(filters.CallbackQuery)
 async def button_handler(_, callback_query):
     user_id = callback_query.from_user.id
     user_data = await get_user_data(user_id)
@@ -134,3 +134,4 @@ async def button_handler(_, callback_query):
 
 if __name__ == "__main__":
     app.run()
+    
