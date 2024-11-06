@@ -202,7 +202,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "font_trick_or_treats":
         user_data['font'] = "fonts/Trick or Treats.ttf"
     elif callback_query.data == "font_vampire_wars_italic":
-        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
+        user_data['font'] = "fonts/UTTAM3.otf"
     elif callback_query.data == "font_lobster":
         user_data['font'] = "fonts/FIGHTBACK.ttf"
 
