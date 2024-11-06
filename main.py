@@ -157,13 +157,13 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     # Adjust position or size based on button pressed
     if callback_query.data == "move_left":
-        user_data['text_position'] = (user_data['text_position'][0] - 10, user_data['text_position'][1])
+        user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
     elif callback_query.data == "move_right":
-        user_data['text_position'] = (user_data['text_position'][0] + 10, user_data['text_position'][1])
+        user_data['text_position'] = (user_data['text_position'][0] + 20, user_data['text_position'][1])
     elif callback_query.data == "move_up":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] - 10)
+        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] - 20)
     elif callback_query.data == "move_down":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 10)
+        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 20)
     elif callback_query.data == "increase_size":
         user_data['size_multiplier'] *= 1.1
     elif callback_query.data == "decrease_size":
