@@ -227,7 +227,8 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"))
+    # Keep the buttons and update the image
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard())
     await callback_query.answer()
 
 # Start the bot
