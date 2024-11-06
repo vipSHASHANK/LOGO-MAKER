@@ -168,13 +168,13 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     # Handle text adjustments
     if callback_query.data == "move_left":
-        user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
+        user_data['text_position'] = (user_data['text_position'][0] - 30, user_data['text_position'][1])
     elif callback_query.data == "move_right":
-        user_data['text_position'] = (user_data['text_position'][0] + 20, user_data['text_position'][1])
+        user_data['text_position'] = (user_data['text_position'][0] + 30, user_data['text_position'][1])
     elif callback_query.data == "move_up":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] - 20)
+        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] - 30)
     elif callback_query.data == "move_down":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 20)
+        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 30)
     elif callback_query.data == "increase_size":
         user_data['size_multiplier'] *= 1.1
     elif callback_query.data == "decrease_size":
@@ -208,9 +208,9 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     # Adjust blur intensity
     if callback_query.data == "blur_plus":
-        user_data['blur_intensity'] = min(user_data['blur_intensity'] + 1, 10)  # Max blur intensity of 10
+        user_data['blur_intensity'] = min(user_data['blur_intensity'] + 2, 10)  # Max blur intensity of 10
     elif callback_query.data == "blur_minus":
-        user_data['blur_intensity'] = max(user_data['blur_intensity'] - 1, 0)  # Min blur intensity of 0
+        user_data['blur_intensity'] = max(user_data['blur_intensity'] - 2, 0)  # Min blur intensity of 0
 
     await save_user_data(user_id, user_data)
 
