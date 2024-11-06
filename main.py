@@ -36,7 +36,7 @@ def get_dynamic_font(image, text, max_width, max_height, font_path=None):
 
 # 3D text effect
 def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offset=(5, 5), glow_strength=5):
-    # Ensure glow_color is a valid string color
+    # Ensure glow_color is a valid string color (e.g., "red", "blue", "white")
     if not isinstance(glow_color, str) or len(glow_color) < 3:
         glow_color = "red"  # Default to red if glow_color is invalid
 
@@ -66,6 +66,9 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         y = (max_height - text_height) // 2 + y_offset
         text_position = (x, y)
         draw = ImageDraw.Draw(user_image)
+        
+        # Log the value of glow_color for debugging purposes
+        logger.debug(f"Using glow color: {glow_color}")
         
         # Add the 3D text with glow
         add_3d_text(draw, text_position, text, font, glow_color=glow_color, text_color="white", glow_strength=10)
@@ -154,9 +157,8 @@ async def text_handler(_, message: Message) -> None:
 
     output_path = await add_text_to_image(local_path, text, None, position, size_multiplier, glow_color)
 
-    # Check if the image was generated successfully
     if output_path is None:
-        await message.reply_text("There was an error while generating the logo. Please try again later.")
+        await message.reply_text("There was an error generating the logo. Please try again.")
         return
 
     # Define the position, size, and color buttons
@@ -210,12 +212,12 @@ async def size_callback(_, callback_query):
     user_id = callback_query.from_user.id
     size = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
-    
+
     # Update user data with new size
     user_data['size_multiplier'] = float(size)
     await save_user_data(user_id, user_data)
 
-    await callback_query.answer(f"Size set to {size}!")
+    await callback_query.answer(f"Size multiplier set to {size}!")
     await callback_query.message.edit_text(f"Size: {size}. Now, choose color!")
 
 @app.on_callback_query(filters.regex("color_"))
@@ -224,33 +226,12 @@ async def color_callback(_, callback_query):
     color = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
-    # Ensure the color is valid and set
-    if color not in ['red', 'blue', 'white']:
-        color = 'red'
-
     # Update user data with new color
     user_data['glow_color'] = color
     await save_user_data(user_id, user_data)
 
-    await callback_query.answer(f"Color set to {color}!")
-    await callback_query.message.edit_text(f"Color: {color}. Regenerating your logo...")
+    await callback_query.answer(f"Glow color set to {color}!")
+    await callback_query.message.edit_text(f"Glow color: {color}. Your logo is ready!")
 
-    # Regenerate logo image with the selected settings
-    local_path = user_data['photo_path']
-    text = user_data['text']
-    position = user_data['text_position']
-    size_multiplier = user_data['size_multiplier']
-    glow_color = user_data['glow_color']
-
-    output_path = await add_text_to_image(local_path, text, None, position, size_multiplier, glow_color)
-
-    if output_path is None:
-        await callback_query.message.reply_text("There was an error regenerating the logo. Please try again.")
-        return
-
-    await callback_query.message.reply_photo(photo=output_path)
-
-# Initialize the Pyrogram Client
-if __name__ == "__main__":
-    app.run()
-    
+# Start the bot
+app.run()
