@@ -221,6 +221,28 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
         await callback_query.answer()
 
+    # Font selection logic
+    elif callback_query.data.startswith("font_"):
+        font_map = {
+            "font_deadly_advance_italic": "fonts/Deadly Advance Italic.ttf",
+            "font_deadly_advance": "fonts/Deadly Advance.ttf",
+            "font_trick_or_treats": "fonts/Trick or Treats.ttf",
+            "font_vampire_wars_italic": "fonts/Vampire Wars Italic.ttf",
+            "font_lobster": "fonts/FIGHTBACK.ttf"
+        }
+
+        font_name = callback_query.data
+        if font_name in font_map:
+            user_data['font'] = font_map[font_name]
+            await save_user_data(user_id, user_data)
+
+            # Regenerate the image with the new font
+            output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+
+            # Update the photo and keyboard
+            await callback_query.message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
+            await callback_query.answer()
+
 # Start the bot
 app.run()
-    
+        
