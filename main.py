@@ -152,8 +152,12 @@ async def text_handler(_, message: Message) -> None:
     size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
 
-    output_path = f"output_logo_{user_id}.png"
-    output_path = await add_text_to_image(local_path, text, output_path, position, size_multiplier, glow_color)
+    output_path = await add_text_to_image(local_path, text, None, position, size_multiplier, glow_color)
+
+    # Check if the image was generated successfully
+    if output_path is None:
+        await message.reply_text("There was an error while generating the logo. Please try again later.")
+        return
 
     # Define the position, size, and color buttons
     position_buttons = InlineKeyboardMarkup([
@@ -234,11 +238,15 @@ async def color_callback(_, callback_query):
     size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
 
-    output_path = f"output_logo_{user_id}.png"
-    output_path = await add_text_to_image(local_path, text, output_path, position, size_multiplier, glow_color)
+    output_path = await add_text_to_image(local_path, text, None, position, size_multiplier, glow_color)
+
+    if output_path is None:
+        await callback_query.message.reply_text("There was an error regenerating the logo. Please try again.")
+        return
 
     await callback_query.message.reply_photo(photo=output_path)
 
 # Initialize the Pyrogram Client
 if __name__ == "__main__":
     app.run()
+    
