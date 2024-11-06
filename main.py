@@ -227,7 +227,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
     # Font selection logic
     if callback_query.data == "font_deadly_advance_italic":
-        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
+        user_data['font'] = "fonts/Monospace.ttf"
     elif callback_query.data == "font_deadly_advance":
         user_data['font'] = "fonts/Deadly Advance.ttf"
     elif callback_query.data == "font_trick_or_treats":
@@ -235,7 +235,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "font_vampire_wars_italic":
         user_data['font'] = "fonts/Vampire Wars Italic.ttf"
     elif callback_query.data == "font_lobster":
-        user_data['font'] = "fonts/Lobster-Regular.ttf"
+        user_data['font'] = "fonts/FIGHTBACK.ttf"
 
     await save_user_data(user_id, user_data)
 
