@@ -43,14 +43,24 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("⚫ Black", callback_data="color_black"),
          InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
          InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
-         InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
+         InlineKeyboardButton("🟣 Purple", callback_data="color_purple"),
+         InlineKeyboardButton("🟤 Brown", callback_data="color_brown")],
         
-        # Font selection buttons
-        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
-         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
-         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
-         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
-         InlineKeyboardButton("Lobster", callback_data="font_lobster")]
+        [InlineKeyboardButton("🟤 Maroon", callback_data="color_maroon"),
+         InlineKeyboardButton("💖 Pink", callback_data="color_pink"),
+         InlineKeyboardButton("🟡 Gold", callback_data="color_gold"),
+         InlineKeyboardButton("🟢 Lime", callback_data="color_lime"),
+         InlineKeyboardButton("🟩 Mint", callback_data="color_mint"),
+         InlineKeyboardButton("🟦 Sky Blue", callback_data="color_sky_blue"),
+         InlineKeyboardButton("🟩 Teal", callback_data="color_teal"),
+         InlineKeyboardButton("🟪 Violet", callback_data="color_violet")],
+        
+        [InlineKeyboardButton("🔶 Amber", callback_data="color_amber"),
+         InlineKeyboardButton("🔷 Turquoise", callback_data="color_turquoise"),
+         InlineKeyboardButton("🟧 Peach", callback_data="color_peach"),
+         InlineKeyboardButton("🔴 Burgundy", callback_data="color_burgundy"),
+         InlineKeyboardButton("🟤 Coffee", callback_data="color_coffee"),
+         InlineKeyboardButton("🟡 Mustard", callback_data="color_mustard")]
     ])
 
 # Add text to image with "brushstroke" effect
@@ -145,12 +155,12 @@ async def text_handler(_, message: Message) -> None:
         return
     
     if user_data['text']:
-        await message.reply_text("You have already entered text for the logo. Proceed with position adjustments.")
+        await message.reply_text("You have already entered text for your logo. Proceed with position adjustments.")
         return
 
     user_text = message.text.strip()
     if not user_text:
-        await message.reply_text("You need to provide text for the logo.")
+        await message.reply_text("You need to provide text for your logo.")
         return
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
@@ -201,6 +211,36 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['text_color'] = "orange"
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
+    elif callback_query.data == "color_brown":
+        user_data['text_color'] = "brown"
+    elif callback_query.data == "color_maroon":
+        user_data['text_color'] = "maroon"
+    elif callback_query.data == "color_pink":
+        user_data['text_color'] = "pink"
+    elif callback_query.data == "color_gold":
+        user_data['text_color'] = "gold"
+    elif callback_query.data == "color_lime":
+        user_data['text_color'] = "lime"
+    elif callback_query.data == "color_mint":
+        user_data['text_color'] = "mint"
+    elif callback_query.data == "color_sky_blue":
+        user_data['text_color'] = "skyblue"
+    elif callback_query.data == "color_teal":
+        user_data['text_color'] = "teal"
+    elif callback_query.data == "color_violet":
+        user_data['text_color'] = "violet"
+    elif callback_query.data == "color_amber":
+        user_data['text_color'] = "amber"
+    elif callback_query.data == "color_turquoise":
+        user_data['text_color'] = "turquoise"
+    elif callback_query.data == "color_peach":
+        user_data['text_color'] = "peach"
+    elif callback_query.data == "color_burgundy":
+        user_data['text_color'] = "burgundy"
+    elif callback_query.data == "color_coffee":
+        user_data['text_color'] = "coffee"
+    elif callback_query.data == "color_mustard":
+        user_data['text_color'] = "mustard"
 
     # Font selection logic
     if callback_query.data == "font_deadly_advance_italic":
@@ -212,7 +252,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "font_vampire_wars_italic":
         user_data['font'] = "fonts/Vampire Wars Italic.ttf"
     elif callback_query.data == "font_lobster":
-        user_data['font'] = "fonts/Lobster-Regular.ttf"
+        user_data['font'] = "fonts/FIGHTBACK.ttf"
 
     await save_user_data(user_id, user_data)
 
@@ -230,4 +270,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
-    
+        
