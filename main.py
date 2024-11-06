@@ -25,20 +25,8 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Apply blur based on the current blur level
-def apply_blur(image_path, blur_level):
-    try:
-        user_image = Image.open(image_path).convert("RGBA")
-        
-        # Apply blur with a Gaussian blur filter, the level can be adjusted by the blur_level
-        blurred_image = user_image.filter(ImageFilter.GaussianBlur(radius=blur_level))
-        return blurred_image
-    except Exception as e:
-        logger.error(f"Error applying blur: {e}")
-        return None
-
 # Define inline keyboard for adjustments with color options
-def get_adjustment_keyboard(blur_level):
+def get_adjustment_keyboard(blur_level=0):
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
          InlineKeyboardButton("➡️ Right", callback_data="move_right")],
@@ -46,6 +34,8 @@ def get_adjustment_keyboard(blur_level):
          InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
         [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
          InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
+        
+        # Color selection buttons
         [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
          InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
          InlineKeyboardButton("🟢 Green", callback_data="color_green"),
@@ -53,19 +43,22 @@ def get_adjustment_keyboard(blur_level):
          InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
          InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
          InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
+        
+        # Font selection buttons
         [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
          InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
          InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
          InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
          InlineKeyboardButton("Lobster", callback_data="font_lobster")],
-        
-        # Blur buttons
-        [InlineKeyboardButton("Blur+", callback_data="blur_plus"),
-         InlineKeyboardButton("Blur-", callback_data="blur_minus")],
-        
-        # Download button
-        [InlineKeyboardButton("Download Logo", callback_data="download_logo")]
+
+        # Blur level adjustment buttons
+        [InlineKeyboardButton("Blur -", callback_data="blur_minus"),
+         InlineKeyboardButton("Blur +", callback_data="blur_plus")],
     ])
+
+# Apply blur to image based on blur level
+def apply_blur(image, blur_level):
+    return image.filter(ImageFilter.GaussianBlur(radius=blur_level))
 
 # Add text to image with adjustments and color
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color, blur_level):
@@ -73,9 +66,6 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
 
-        # Apply blur if required
-        user_image = apply_blur(photo_path, blur_level)
-        
         # Adjust font size based on size_multiplier
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
@@ -95,6 +85,10 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
 
         # Apply main text color
         draw.text((x, y), text, font=font, fill=text_color)
+
+        # Apply blur to image if blur_level > 0
+        if blur_level > 0:
+            user_image = apply_blur(user_image, blur_level)
 
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
@@ -171,7 +165,7 @@ async def text_handler(_, message: Message) -> None:
     await save_user_data(user_id, user_data)
 
     # Generate logo and show adjustment options
-    font_path = user_data['font']
+    font_path = user_data['font']  # Default to Deadly Advance font if not set
     output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_level'])
 
     if output_path is None:
@@ -234,10 +228,16 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Error regenerating the image.", show_alert=True)
         return
 
-    # Keep the buttons and update the image
-    await callback_query.message.edit_photo(photo=output_path, reply_markup=get_adjustment_keyboard(user_data['blur_level']))
+    # Check if the message was a photo message
+    if callback_query.message.media and callback_query.message.media.type == 'photo':
+        # If it's a photo message, use edit_media to update the photo
+        await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard(user_data['blur_level']))
+    else:
+        # Otherwise, update the text message
+        await callback_query.message.edit_text("Here is your logo with the changes!", reply_markup=get_adjustment_keyboard(user_data['blur_level']))
+
     await callback_query.answer()
 
 if __name__ == "__main__":
     app.run()
-        
+    
