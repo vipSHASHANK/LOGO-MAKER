@@ -4,7 +4,6 @@ from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from config import Config
-from private_buttons import create_font_buttons, create_position_buttons, create_size_buttons, create_color_buttons
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -132,17 +131,37 @@ async def text_handler(_, message: Message) -> None:
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
 
-    # After receiving the text, prompt the user to select position, size, and color
-    position_buttons = create_position_buttons()  # List of lists of buttons
-    size_buttons = create_size_buttons()          # List of lists of buttons
-    color_buttons = create_color_buttons()        # List of lists of buttons
+    # Directly define the buttons in the code
+    position_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Left", callback_data="position_left"),
+            InlineKeyboardButton("Right", callback_data="position_right")
+        ],
+        [
+            InlineKeyboardButton("Up", callback_data="position_up"),
+            InlineKeyboardButton("Down", callback_data="position_down")
+        ]
+    ])
 
-    # Combine all buttons into one list of lists (InlineKeyboardMarkup expects this)
-    keyboard = InlineKeyboardMarkup(
-        position_buttons + size_buttons + color_buttons
-    )
+    size_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
+            InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
+        ]
+    ])
 
-    await message.reply_text("Choose position, size, and color for the logo text:", reply_markup=keyboard)
+    color_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Red", callback_data="color_red"),
+            InlineKeyboardButton("Blue", callback_data="color_blue"),
+            InlineKeyboardButton("White", callback_data="color_white")
+        ]
+    ])
+
+    # Combine all buttons into one list of lists
+    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
+
+    await message.reply_text("Choose position, size, and color for the logo text:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 @app.on_callback_query(filters.regex("position_"))
 async def position_callback(_, callback_query):
