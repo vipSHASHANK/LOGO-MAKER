@@ -238,6 +238,16 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['blur_radius'] = max(user_data['blur_radius'] - 1, 0)  # Prevent going below 0
     elif callback_query.data == "blur_increase":
         user_data['blur_radius'] += 1  # Increase blur radius
+    elif callback_query.data == "font_deadly_advance_italic":
+        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
+    elif callback_query.data == "font_deadly_advance":
+        user_data['font'] = "fonts/Deadly Advance.ttf"
+    elif callback_query.data == "font_trick_or_treats":
+        user_data['font'] = "fonts/Trick or Treats.ttf"
+    elif callback_query.data == "font_vampire_wars_italic":
+        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
+    elif callback_query.data == "font_lobster":
+        user_data['font'] = "fonts/FIGHTBACK.ttf"
     elif callback_query.data == "download_jpg":
         # Convert the current final image to JPG and send it
         final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_radius'])
