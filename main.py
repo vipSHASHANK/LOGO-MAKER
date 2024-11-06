@@ -156,8 +156,8 @@ async def text_handler(_, message: Message) -> None:
 
     size_buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
-            InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
+            InlineKeyboardButton("Zoom In", callback_data="zoom_in"),
+            InlineKeyboardButton("Zoom Out", callback_data="zoom_out")
         ]
     ])
 
@@ -179,16 +179,18 @@ async def position_callback(_, callback_query):
     position = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
     
-    x_offset, y_offset = 0, 0
+    x_offset, y_offset = user_data['text_position']
 
+    # Adjust position incrementally for less drastic movement
+    move_increment = 20  # Smaller movement for position buttons
     if position == "left":
-        x_offset = -100
+        x_offset -= move_increment
     elif position == "right":
-        x_offset = 100
+        x_offset += move_increment
     elif position == "up":
-        y_offset = -100
+        y_offset -= move_increment
     elif position == "down":
-        y_offset = 100
+        y_offset += move_increment
 
     user_data['text_position'] = (x_offset, y_offset)
     await save_user_data(user_id, user_data)
@@ -219,8 +221,8 @@ async def position_callback(_, callback_query):
 
     size_buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("Zoom In", callback_data="size_1.5"),
-            InlineKeyboardButton("Zoom Out", callback_data="size_0.8")
+            InlineKeyboardButton("Zoom In", callback_data="zoom_in"),
+            InlineKeyboardButton("Zoom Out", callback_data="zoom_out")
         ]
     ])
 
@@ -236,23 +238,71 @@ async def position_callback(_, callback_query):
 
     media = InputMediaPhoto(media=new_logo_path)
     await callback_query.message.edit_media(
-        media=media,  # Use InputMediaPhoto instead of dict
+        media=media,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
     await callback_query.answer(f"Position updated to {position}!")
 
-@app.on_callback_query(filters.regex("size_"))
-async def size_callback(_, callback_query):
+@app.on_callback_query(filters.regex("zoom_"))
+async def zoom_callback(_, callback_query):
     user_id = callback_query.from_user.id
-    size = callback_query.data.split("_")[1]
+    zoom = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
-    user_data['size_multiplier'] = float(size)
+    # Adjust size with zoom
+    zoom_factor = 1.2 if zoom == "in" else 0.8
+    user_data['size_multiplier'] *= zoom_factor
     await save_user_data(user_id, user_data)
 
-    await callback_query.answer(f"Size multiplier set to {size}!")
-    await callback_query.message.edit_text(f"Size: {size}. Now, choose color!")
+    local_path = user_data['photo_path']
+    text = user_data['text']
+    position = user_data['text_position']
+    glow_color = user_data['glow_color']
+
+    new_logo_path = await add_text_to_image(local_path, text, None,
+                                             x_offset=position[0], y_offset=position[1],
+                                             size_multiplier=user_data['size_multiplier'], text_color=glow_color)
+
+    if new_logo_path is None:
+        await callback_query.message.edit_text("There was an error generating the logo.")
+        return
+
+    position_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Left", callback_data="position_left"),
+            InlineKeyboardButton("Right", callback_data="position_right")
+        ],
+        [
+            InlineKeyboardButton("Up", callback_data="position_up"),
+            InlineKeyboardButton("Down", callback_data="position_down")
+        ]
+    ])
+
+    size_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Zoom In", callback_data="zoom_in"),
+            InlineKeyboardButton("Zoom Out", callback_data="zoom_out")
+        ]
+    ])
+
+    color_buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Red", callback_data="color_red"),
+            InlineKeyboardButton("Blue", callback_data="color_blue"),
+            InlineKeyboardButton("White", callback_data="color_white")
+        ]
+    ])
+
+    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
+
+    media = InputMediaPhoto(media=new_logo_path)
+    await callback_query.message.edit_media(
+        media=media,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    await callback_query.answer(f"Zoom {zoom} applied!")
 
 @app.on_callback_query(filters.regex("color_"))
 async def color_callback(_, callback_query):
