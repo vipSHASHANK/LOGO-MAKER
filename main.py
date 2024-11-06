@@ -64,37 +64,48 @@ async def get_user_data(user_id):
 
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
-    welcome_text = (
-        "👋 Welcome to the Logo Creator Bot!\n\n"
-        "With this bot, you can create a custom logo by sending a photo and adding text to it!\n"
-    )
-    await message.reply_text(welcome_text)
+    # Check if user already started the process
+    user_data = await get_user_data(message.from_user.id)
+    if not user_data or not user_data.get("text"):
+        welcome_text = (
+            "👋 Welcome to the Logo Creator Bot!\n\n"
+            "With this bot, you can create a custom logo by sending a photo and adding text to it!\n"
+            "Please send a photo to get started."
+        )
+        await message.reply_text(welcome_text)
 
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message) -> None:
+    media = message
     try:
-        media = message
         local_path = await media.download()
         await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
-        print(f"Error in photo handler: {e}")
         await message.reply_text("File processing failed.")
 
 @app.on_message(filters.text & filters.private)
 async def text_handler(_, message: Message) -> None:
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
+
+    # Check if user has already provided text
     if not user_data:
         await message.reply_text("Please send a photo first.")
         return
+    
+    # Check if text has already been entered to prevent multiple prompts
+    if user_data['text']:
+        await message.reply_text("You have already entered text for the logo. Proceed with font and position selection.")
+        return
+
     user_text = message.text.strip()
     if not user_text:
         await message.reply_text("You need to provide text for the logo.")
         return
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
-    
+
     # After receiving the text, prompt the user to select position, size, and color
     position_buttons = create_position_buttons()
     size_buttons = create_size_buttons()
