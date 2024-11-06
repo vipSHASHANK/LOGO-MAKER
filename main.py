@@ -34,25 +34,25 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
         [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
          InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
+        
+        # Color selection buttons
         [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
-         InlineKeyboardButton("🟦 Blue", callback_data="color_blue"),
-         InlineKeyboardButton("🟩 Green", callback_data="color_green"),
-         InlineKeyboardButton("⚫ Black", callback_data="color_black")],
-        [InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
+         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
+         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
+         InlineKeyboardButton("⚫ Black", callback_data="color_black"),
+         InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
          InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
-         InlineKeyboardButton("🟣 Purple", callback_data="color_purple"),
-         InlineKeyboardButton("🟤 Brown", callback_data="color_brown")],
-        [InlineKeyboardButton("🟩 Lime", callback_data="color_lime"),
-         InlineKeyboardButton("🟦 Navy", callback_data="color_navy"),
-         InlineKeyboardButton("🟩 Teal", callback_data="color_teal"),
-         InlineKeyboardButton("🟥 Pink", callback_data="color_pink")],
-        [InlineKeyboardButton("🟧 Amber", callback_data="color_amber"),
-         InlineKeyboardButton("🟨 Tan", callback_data="color_tan"),
-         InlineKeyboardButton("🟥 Maroon", callback_data="color_maroon"),
-         InlineKeyboardButton("🔶 Gold", callback_data="color_gold")]
+         InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
+        
+        # Font selection buttons
+        [InlineKeyboardButton("Roboto", callback_data="font_roboto"),
+         InlineKeyboardButton("Pacifico", callback_data="font_pacifico"),
+         InlineKeyboardButton("Open Sans", callback_data="font_opensans"),
+         InlineKeyboardButton("Monospace", callback_data="font_monospace"),
+         InlineKeyboardButton("Lobster", callback_data="font_lobster")]
     ])
 
-# Add text to image with adjustments and color, including shadow effect
+# Add text to image with adjustments and color
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
@@ -69,14 +69,7 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         x = text_position[0]
         y = text_position[1]
 
-        # Shadow effect: using a darker color (gray/black) for the shadow
-        shadow_offset = 5
-        shadow_color = (0, 0, 0)  # Black shadow color (you can use a darker color if you prefer)
-        for dx in [-shadow_offset, shadow_offset]:
-            for dy in [-shadow_offset, shadow_offset]:
-                draw.text((x + dx, y + dy), text, font=font, fill=shadow_color)
-
-        # White outline effect (original effect)
+        # Outline effect in white
         outline_width = 3
         for dx in [-outline_width, outline_width]:
             for dy in [-outline_width, outline_width]:
@@ -133,7 +126,7 @@ async def photo_handler(_, message: Message) -> None:
         text = await message.reply("Processing...")
         local_path = await media.download()
         await text.edit_text("Processing your logo...")
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red'})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/FIGHTBACK.ttf'})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         logger.error(e)
@@ -160,7 +153,7 @@ async def text_handler(_, message: Message) -> None:
     await save_user_data(user_id, user_data)
 
     # Generate logo and show adjustment options
-    font_path = "fonts/FIGHTBACK.ttf"
+    font_path = user_data['font']  # Default to FIGHTBACK font if not set
     output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
@@ -205,29 +198,23 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['text_color'] = "orange"
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
-    elif callback_query.data == "color_brown":
-        user_data['text_color'] = "brown"
-    elif callback_query.data == "color_lime":
-        user_data['text_color'] = "lime"
-    elif callback_query.data == "color_navy":
-        user_data['text_color'] = "navy"
-    elif callback_query.data == "color_teal":
-        user_data['text_color'] = "teal"
-    elif callback_query.data == "color_pink":
-        user_data['text_color'] = "pink"
-    elif callback_query.data == "color_amber":
-        user_data['text_color'] = "amber"
-    elif callback_query.data == "color_tan":
-        user_data['text_color'] = "tan"
-    elif callback_query.data == "color_maroon":
-        user_data['text_color'] = "maroon"
-    elif callback_query.data == "color_gold":
-        user_data['text_color'] = "gold"
+
+    # Update font based on selection
+    elif callback_query.data == "font_roboto":
+        user_data['font'] = "fonts/Roboto-Regular.ttf"
+    elif callback_query.data == "font_pacifico":
+        user_data['font'] = "fonts/Pacifico-Regular.ttf"
+    elif callback_query.data == "font_opensans":
+        user_data['font'] = "fonts/OpenSans-Regular.ttf"
+    elif callback_query.data == "font_monospace":
+        user_data['font'] = "fonts/Monospace.ttf"
+    elif callback_query.data == "font_lobster":
+        user_data['font'] = "fonts/Lobster-Regular.ttf"
 
     await save_user_data(user_id, user_data)
 
     # Regenerate the logo with the new adjustments
-    font_path = "fonts/FIGHTBACK.ttf"
+    font_path = user_data.get("font", "fonts/FIGHTBACK.ttf")  # Default to FIGHTBACK if no font is set
     output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
@@ -238,5 +225,5 @@ async def callback_handler(_, callback_query: CallbackQuery):
     await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard())
     await callback_query.answer()
 
-# Start the bot
-app.run()
+if __name__ == "__main__":
+    app.run()
