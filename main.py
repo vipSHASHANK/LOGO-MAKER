@@ -194,9 +194,9 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "move_down":
         user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 20)
     elif callback_query.data == "increase_size":
-        user_data['size_multiplier'] += 0.1
+        user_data['size_multiplier'] *= 1.1
     elif callback_query.data == "decrease_size":
-        user_data['size_multiplier'] -= 0.1
+        user_data['size_multiplier'] *= 0.9
     elif callback_query.data == "color_red":
         user_data['text_color'] = "red"
     elif callback_query.data == "color_blue":
@@ -218,7 +218,6 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "blur_minus":
         user_data['blur_level'] = max(0, user_data['blur_level'] - 10)
 
-    # Save updated user data
     await save_user_data(user_id, user_data)
 
     # Regenerate the logo with updated settings
@@ -229,14 +228,8 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Error regenerating the image.", show_alert=True)
         return
 
-    # Check if the message is a photo
-    if callback_query.message.photo:
-        # If it's a photo message, use edit_media to update the photo
-        await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard(user_data['blur_level']))
-    else:
-        # Otherwise, update the text message
-        await callback_query.message.edit_text("Here is your logo with the changes!", reply_markup=get_adjustment_keyboard(user_data['blur_level']))
-
+    # Update the photo with new image
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard(user_data['blur_level']))
     await callback_query.answer()
 
 # Start the bot
