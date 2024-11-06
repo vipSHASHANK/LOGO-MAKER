@@ -1,7 +1,7 @@
 # callbacks.py
 
 from pyrogram.types import CallbackQuery
-from your_main_script import save_user_data, get_user_data, add_text_to_image, convert_to_jpg, get_adjustment_keyboard
+from ..main import save_user_data, get_user_data, add_text_to_image, convert_to_jpg, get_adjustment_keyboard
 from random import randint
 import os
 
