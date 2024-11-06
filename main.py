@@ -1,11 +1,13 @@
 import os
 import logging
 import tempfile
+import threading
 from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageFilter
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
 from buttons import get_adjustment_keyboard  # Importing the function from button.py
+from flask import Flask
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -194,7 +196,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
 
-# Font selection logic
+    # Font selection logic
     if callback_query.data == "font_deadly_advance_italic":
         user_data['font'] = "fonts/UTTAM4.otf"
     elif callback_query.data == "font_deadly_advance":
@@ -236,7 +238,26 @@ async def callback_handler(_, callback_query: CallbackQuery):
         with open(output_path, "rb") as file:
             await callback_query.message.reply_document(file, caption="【 ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ 】")
         await callback_query.message.edit_reply_markup(reply_markup=None)
-    
-if __name__ == "__main__":
+
+# Flask app to listen on port 8000
+app_flask = Flask(__name__)
+
+@app_flask.route("/", methods=["GET", "POST"])
+def index():
+    return "Bot is running."
+
+# Run Flask server and the Pyrogram bot concurrently
+def start_flask():
+    app_flask.run(host="0.0.0.0", port=8000)
+
+def start_bot():
     app.run()
-        
+
+if __name__ == "__main__":
+    # Run Flask in a separate thread to handle web requests
+    flask_thread = threading.Thread(target=start_flask)
+    flask_thread.start()
+
+    # Run the Pyrogram bot
+    start_bot()
+    
