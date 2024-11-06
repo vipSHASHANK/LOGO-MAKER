@@ -224,6 +224,10 @@ async def color_callback(_, callback_query):
     color = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
+    # Ensure the color is valid and set
+    if color not in ['red', 'blue', 'white']:
+        color = 'red'
+
     # Update user data with new color
     user_data['glow_color'] = color
     await save_user_data(user_id, user_data)
