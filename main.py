@@ -248,7 +248,7 @@ def index():
 
 # Run Flask server and the Pyrogram bot concurrently
 def start_flask():
-    app_flask.run(host="0.0.0.0", port=8000)
+    app_flask.run(host="0.0.0.0", port=8000, threaded=True)
 
 def start_bot():
     app.run()
@@ -256,6 +256,7 @@ def start_bot():
 if __name__ == "__main__":
     # Run Flask in a separate thread to handle web requests
     flask_thread = threading.Thread(target=start_flask)
+    flask_thread.daemon = True  # Ensures that the thread will exit when the main program exits
     flask_thread.start()
 
     # Run the Pyrogram bot
