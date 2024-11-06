@@ -7,24 +7,24 @@ from pyrogram.storage import MemoryStorage  # सही से आयात क�
 from config import Config
 from private_buttons import create_font_buttons, create_position_buttons, create_size_buttons, create_color_buttons
 
-# लॉगिंग सेटअप
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# इन-मेमोरी यूज़र डेटा स्टोर
-user_data_store = {}
-
-# MemoryStorage का उपयोग करें, और इसे नाम के साथ पास करें
-storage = MemoryStorage("memory_storage")  # नाम प्रदान करें
+# MemoryStorage का उपयोग करें
+storage = MemoryStorage("memory_storage")
 
 # बॉट सेटअप
 app = Client(
-    "logo_creator_bot",  # यहाँ Client का नाम पास किया गया है
+    "logo_creator_bot",  # Client का नाम यहाँ पास किया गया है
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
     storage=storage  # स्टोरेज को क्लाइंट में पास करें
 )
+
+# यूज़र डेटा स्टोर
+user_data_store = {}
 
 # फ़ॉन्ट विकल्प (अपने फ़ॉन्ट्स का पथ)
 FONT_OPTIONS = [
@@ -95,17 +95,6 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         logger.error(f"चित्र में टेक्स्ट जोड़ने में त्रुटि: {e}")
         return None
 
-# फोटो हैंडलर
-@app.on_message(filters.photo & filters.private)
-async def photo_handler(_, message: Message):
-    if message.photo:
-        photo_path = f"user_photos/{message.photo.file_id}.jpg"
-        await message.download(photo_path)
-
-        await save_user_data(message.from_user.id, {'photo_path': photo_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
-
-        await message.reply_text("अब अपना लोगो टेक्स्ट भेजें।")
-
 # यूज़र डेटा सेव करने का फ़ंक्शन
 async def save_user_data(user_id, data):
     user_data_store[user_id] = data
@@ -115,20 +104,61 @@ async def save_user_data(user_id, data):
 async def get_user_data(user_id):
     return user_data_store.get(user_id, None)
 
+# स्टार्ट कमांड हैंडलर
+@app.on_message(filters.command("start"))
+async def start_command(_, message: Message) -> None:
+    """Welcomes the user with instructions."""
+    welcome_text = (
+        "👋 Welcome to the Logo Creator Bot!\n\n"
+        "With this bot, you can create a custom logo by sending a photo and adding text to it!\n"
+    )
+
+    keyboard = [
+        [InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
+
+# फोटो हैंडलर
+@app.on_message(filters.photo & filters.private)
+async def photo_handler(_, message: Message) -> None:
+    """Handles incoming photo messages."""
+    media = message
+    file_size = media.photo.file_size if media.photo else 0
+
+    if file_size > 200 * 1024 * 1024:
+        return await message.reply_text("Please provide a photo under 200MB.")
+
+    try:
+        text = await message.reply("Processing...")
+
+        local_path = await media.download()
+        await text.edit_text("Processing your logo...")
+
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
+
+        await message.reply_text("Please send the text you want for your logo.")
+        
+    except Exception as e:
+        logger.error(e)
+        await text.edit_text("File processing failed.")
+
 # टेक्स्ट हैंडलर
 @app.on_message(filters.text & filters.private)
-async def text_handler(_, message: Message):
+async def text_handler(_, message: Message) -> None:
+    """Handles incoming text for logo creation."""
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("पहले अपना फोटो भेजें।")
+        await message.reply_text("Please send a photo first.")
         return
 
     user_text = message.text.strip()
 
     if not user_text:
-        await message.reply_text("लोगो टेक्स्ट देना होगा।")
+        await message.reply_text("You need to provide text for the logo.")
         return
 
     user_data['text'] = user_text
@@ -136,18 +166,19 @@ async def text_handler(_, message: Message):
 
     font_buttons = create_font_buttons()
     await message.reply_text(
-        "अपना फ़ॉन्ट चुनें:", 
+        "Choose a font:", 
         reply_markup=InlineKeyboardMarkup([font_buttons])
     )
 
 # फ़ॉन्ट चयन हैंडलर
 @app.on_message(filters.regex("font_") & filters.private)
-async def font_handler(_, message: Message):
+async def font_handler(_, message: Message) -> None:
+    """Handles font selection."""
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("पहले अपना फोटो भेजें।")
+        await message.reply_text("Please send a photo first.")
         return
 
     font_choice = message.text.strip().split('_')[1]
@@ -157,57 +188,60 @@ async def font_handler(_, message: Message):
         user_data['font'] = selected_font
         await save_user_data(user_id, user_data)
 
-        await message.reply_text(f"आपने फ़ॉन्ट '{selected_font['name']}' को चुना है।")
+        await message.reply_text(f"You selected the font '{selected_font['name']}'.")
 
         color_buttons = create_color_buttons()
-        await message.reply_text("अपना लोगो टेक्स्ट का रंग बताएं:", reply_markup=InlineKeyboardMarkup(color_buttons))
+        await message.reply_text("Choose a color for your logo text:", reply_markup=InlineKeyboardMarkup(color_buttons))
 
 # रंग चयन हैंडलर
 @app.on_message(filters.regex("color_") & filters.private)
-async def color_handler(_, message: Message):
+async def color_handler(_, message: Message) -> None:
+    """Handles color selection."""
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("पहले अपना फोटो भेजें।")
+        await message.reply_text("Please send a photo first.")
         return
 
     user_color = message.text.strip().split('_')[1]
     user_data['glow_color'] = user_color
     await save_user_data(user_id, user_data)
 
-    await message.reply_text(f"आपने रंग '{user_color}' को चुना है।")
+    await message.reply_text(f"You selected the color '{user_color}'.")
 
     position_buttons = create_position_buttons()
-    await message.reply_text("अपना लोगो स्थिति चुनें:", reply_markup=InlineKeyboardMarkup(position_buttons))
+    await message.reply_text("Choose the position for your logo text:", reply_markup=InlineKeyboardMarkup(position_buttons))
 
 # स्थिति चयन हैंडलर
 @app.on_message(filters.regex("position_") & filters.private)
-async def position_handler(_, message: Message):
+async def position_handler(_, message: Message) -> None:
+    """Handles position selection."""
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("पहले अपना फोटो भेजें।")
+        await message.reply_text("Please send a photo first.")
         return
 
     position = message.text.strip().split('_')[1]
     user_data['position'] = position
     await save_user_data(user_id, user_data)
 
-    await message.reply_text(f"स्थिति '{position}' चुनी गई है।")
+    await message.reply_text(f"Position '{position}' selected.")
 
     size_buttons = create_size_buttons()
-    await message.reply_text("अपना लोगो आकार चुनें:", reply_markup=InlineKeyboardMarkup(size_buttons))
+    await message.reply_text("Choose the size for your logo:", reply_markup=InlineKeyboardMarkup(size_buttons))
 
 # आकार चयन हैंडलर
 @app.on_message(filters.regex("size_") & filters.private)
-async def size_handler(_, message: Message):
+async def size_handler(_, message: Message) -> None:
+    """Handles size selection."""
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("पहले अपना फोटो भेजें।")
+        await message.reply_text("Please send a photo first.")
         return
 
     size = message.text.strip().split('_')[1]
@@ -224,14 +258,9 @@ async def size_handler(_, message: Message):
     )
 
     if added_text_image:
-        await message.reply_photo(added_text_image, caption="यह रहा आपका लोगो!")
+        await message.reply_photo(added_text_image, caption="Here is your logo!")
     else:
-        await message.reply_text("लोगो बनाते समय कुछ गलत हो गया।")
-
-# स्टार्ट कमांड हैंडलर
-@app.on_message(filters.command("start") & filters.private)
-async def start(_, message: Message):
-    await message.reply_text("Logo Creator Bot में आपका स्वागत है! शुरुआत करने के लिए एक फोटो भेजें।")
+        await message.reply_text("Something went wrong while creating the logo.")
 
 if __name__ == "__main__":
     app.run()
