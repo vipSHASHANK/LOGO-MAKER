@@ -197,102 +197,27 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Please upload a photo first.", show_alert=True)
         return
 
-    # Adjust position, size, or color based on button pressed
-    if callback_query.data == "move_left":
-        user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
-    elif callback_query.data == "move_right":
-        user_data['text_position'] = (user_data['text_position'][0] + 20, user_data['text_position'][1])
-    elif callback_query.data == "move_up":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] - 20)
-    elif callback_query.data == "move_down":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 20)
-    elif callback_query.data == "increase_size":
-        user_data['size_multiplier'] *= 1.1
-    elif callback_query.data == "decrease_size":
-        user_data['size_multiplier'] *= 0.9
-    elif callback_query.data == "color_red":
-        user_data['text_color'] = "red"
-    elif callback_query.data == "color_blue":
-        user_data['text_color'] = "blue"
-    elif callback_query.data == "color_green":
-        user_data['text_color'] = "green"
-    elif callback_query.data == "color_black":
-        user_data['text_color'] = "black"
-    elif callback_query.data == "color_yellow":
-        user_data['text_color'] = "yellow"
-    elif callback_query.data == "color_orange":
-        user_data['text_color'] = "orange"
-    elif callback_query.data == "color_purple":
-        user_data['text_color'] = "purple"
+    # Process callback data based on button pressed (Move, Size, Color, etc.)
+    if callback_query.data == "download_logo":
+        # Regenerate the image with the user's settings
+        final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+        final_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
+        final_image_path = await add_text_to_image(final_image_path, user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
-    # Font selection logic
-    if callback_query.data == "font_deadly_advance_italic":
-        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
-    elif callback_query.data == "font_deadly_advance":
-        user_data['font'] = "fonts/Deadly Advance.ttf"
-    elif callback_query.data == "font_trick_or_treats":
-        user_data['font'] = "fonts/Trick or Treats.ttf"
-    elif callback_query.data == "font_vampire_wars_italic":
-        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
-    elif callback_query.data == "font_lobster":
-        user_data['font'] = "fonts/Lobster-Regular.ttf"
+        # Convert to JPG format for download
+        jpg_path = final_image_path.replace(".png", ".jpg")
+        image = Image.open(final_image_path)
+        image = image.convert("RGB")
+        image.save(jpg_path, "JPEG")
 
-    # Blur effect logic
-    if callback_query.data == "blur_plus":
-        user_data['blur_intensity'] = min(user_data.get('blur_intensity', 0) + 1, 10)  # Max blur = 10
-    elif callback_query.data == "blur_minus":
-        user_data['blur_intensity'] = max(user_data.get('blur_intensity', 0) - 1, 0)  # Min blur = 0
+        # Send the final image to the user
+        await callback_query.message.reply_document(jpg_path, caption="Here is your final logo!")
 
-    await save_user_data(user_id, user_data)
+        # Optionally, delete the temporary files after sending the image
+        os.remove(final_image_path)
+        os.remove(jpg_path)
 
-    # Regenerate the logo with the new adjustments
-    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-
-    if output_path is None:
-        await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
-        return
-
-    # Apply blur effect to the background image (not the text)
-    output_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
-
-    # Add text again on top of the blurred image
-    output_path = await add_text_to_image(output_path, user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-
-    # Update the media and keep the same buttons
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with changes!"), reply_markup=get_adjustment_keyboard(final_image_path=output_path))
-    await callback_query.answer()
-
-# Handle download request
-@app.on_callback_query(filters.regex("download_logo"))
-async def download_logo(_, callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    user_data = await get_user_data(user_id)
-
-    if not user_data or not user_data.get("photo_path"):
-        await callback_query.answer("Please upload a photo first.", show_alert=True)
-        return
-
-    # Final image path
-    final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-    final_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
-    final_image_path = await add_text_to_image(final_image_path, user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-
-    # Convert to JPG format for download
-    jpg_path = final_image_path.replace(".png", ".jpg")
-    image = Image.open(final_image_path)
-    image = image.convert("RGB")
-    image.save(jpg_path, "JPEG")
-
-    # Send the final image
-    await callback_query.message.reply_document(jpg_path, caption="Here is your final logo!")
-
-    # Optionally, you can delete the temporary files
-    os.remove(final_image_path)
-    os.remove(jpg_path)
-
-    await callback_query.answer()
+        await callback_query.answer()
 
 # Start the bot
 app.run()
-    
