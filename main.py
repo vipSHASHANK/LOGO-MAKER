@@ -116,10 +116,12 @@ async def text_handler(_, message: Message) -> None:
     user_id = message.from_user.id
     user_data = await get_user_data(user_id)
 
+    # Check if user has already provided text
     if not user_data:
         await message.reply_text("Please send a photo first.")
         return
     
+    # Check if text has already been entered to prevent multiple prompts
     if user_data['text']:
         await message.reply_text("You have already entered text for the logo. Proceed with font and position selection.")
         return
@@ -131,18 +133,21 @@ async def text_handler(_, message: Message) -> None:
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
 
+    # Generate the logo immediately after user sends the text
     local_path = user_data['photo_path']
     text = user_data['text']
     position = user_data['text_position']
     size_multiplier = user_data['size_multiplier']
     glow_color = user_data['glow_color']
 
+    # Use the simplified version of text addition
     output_path = await add_text_to_image(local_path, text, None, x_offset=position[0], y_offset=position[1], size_multiplier=size_multiplier, text_color=glow_color)
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
         return
 
+    # Define the position, size, and color buttons
     position_buttons = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Left", callback_data="position_left"),
@@ -169,8 +174,10 @@ async def text_handler(_, message: Message) -> None:
         ]
     ])
 
+    # Combine all buttons into one list of lists
     keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
+    # Send the generated logo with buttons
     await message.reply_photo(photo=output_path, reply_markup=InlineKeyboardMarkup(keyboard))
 
 @app.on_callback_query(filters.regex("position_"))
@@ -179,70 +186,12 @@ async def position_callback(_, callback_query):
     position = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
     
-    x_offset, y_offset = user_data['text_position']
-
-    # Adjust position incrementally for less drastic movement
-    move_increment = 20  # Smaller movement for position buttons
-    if position == "left":
-        x_offset -= move_increment
-    elif position == "right":
-        x_offset += move_increment
-    elif position == "up":
-        y_offset -= move_increment
-    elif position == "down":
-        y_offset += move_increment
-
-    user_data['text_position'] = (x_offset, y_offset)
+    # Update user data with new position
+    user_data['text_position'] = position
     await save_user_data(user_id, user_data)
 
-    local_path = user_data['photo_path']
-    text = user_data['text']
-    size_multiplier = user_data['size_multiplier']
-    glow_color = user_data['glow_color']
-
-    new_logo_path = await add_text_to_image(local_path, text, None, 
-                                             x_offset=x_offset, y_offset=y_offset,
-                                             size_multiplier=size_multiplier, text_color=glow_color)
-
-    if new_logo_path is None:
-        await callback_query.message.edit_text("There was an error generating the logo.")
-        return
-
-    position_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Left", callback_data="position_left"),
-            InlineKeyboardButton("Right", callback_data="position_right")
-        ],
-        [
-            InlineKeyboardButton("Up", callback_data="position_up"),
-            InlineKeyboardButton("Down", callback_data="position_down")
-        ]
-    ])
-
-    size_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Zoom In", callback_data="zoom_in"),
-            InlineKeyboardButton("Zoom Out", callback_data="zoom_out")
-        ]
-    ])
-
-    color_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Red", callback_data="color_red"),
-            InlineKeyboardButton("Blue", callback_data="color_blue"),
-            InlineKeyboardButton("White", callback_data="color_white")
-        ]
-    ])
-
-    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
-
-    media = InputMediaPhoto(media=new_logo_path)
-    await callback_query.message.edit_media(
-        media=media,
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-    await callback_query.answer(f"Position updated to {position}!")
+    await callback_query.answer(f"Position set to {position}!")
+    await callback_query.message.edit_text(f"Position: {position}. Now, choose size and color!")
 
 @app.on_callback_query(filters.regex("zoom_"))
 async def zoom_callback(_, callback_query):
@@ -250,16 +199,22 @@ async def zoom_callback(_, callback_query):
     zoom = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
-    # Adjust size with zoom
-    zoom_factor = 1.2 if zoom == "in" else 0.8
-    user_data['size_multiplier'] *= zoom_factor
+    # Adjust size with zoom (2x effect for zooming in/out)
+    if zoom == "in":
+        user_data['size_multiplier'] *= 2  # Double the text size
+    elif zoom == "out":
+        user_data['size_multiplier'] *= 0.5  # Half the text size
+
+    # Save updated user data with new size multiplier
     await save_user_data(user_id, user_data)
 
+    # Recreate the logo with the new size multiplier
     local_path = user_data['photo_path']
     text = user_data['text']
     position = user_data['text_position']
     glow_color = user_data['glow_color']
 
+    # Generate the new logo with the updated size multiplier
     new_logo_path = await add_text_to_image(local_path, text, None,
                                              x_offset=position[0], y_offset=position[1],
                                              size_multiplier=user_data['size_multiplier'], text_color=glow_color)
@@ -268,6 +223,7 @@ async def zoom_callback(_, callback_query):
         await callback_query.message.edit_text("There was an error generating the logo.")
         return
 
+    # Prepare the buttons to show after zooming
     position_buttons = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Left", callback_data="position_left"),
@@ -294,8 +250,10 @@ async def zoom_callback(_, callback_query):
         ]
     ])
 
+    # Combine all buttons
     keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
+    # Update the message with the new logo and buttons
     media = InputMediaPhoto(media=new_logo_path)
     await callback_query.message.edit_media(
         media=media,
@@ -310,6 +268,7 @@ async def color_callback(_, callback_query):
     color = callback_query.data.split("_")[1]
     user_data = await get_user_data(user_id)
 
+    # Update user data with new color
     user_data['glow_color'] = color
     await save_user_data(user_id, user_data)
 
