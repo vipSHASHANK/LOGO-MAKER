@@ -28,21 +28,21 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
 # Define inline keyboard for adjustments with color, blur options, and download button
 def get_adjustment_keyboard(final_image_path=None):
     buttons = [
-        [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
-         InlineKeyboardButton("➡️ Right", callback_data="move_right")],
-        [InlineKeyboardButton("⬆️ Up", callback_data="move_up"),
-         InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
-        [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
-         InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
+        [InlineKeyboardButton("↼ʟᴇғᴛ", callback_data="move_left"),
+         InlineKeyboardButton("ʀɪɢʜᴛ⇁", callback_data="move_right")],
+        [InlineKeyboardButton("↿ᴜᴘ", callback_data="move_up"),
+         InlineKeyboardButton("⇃ᴅᴏᴡɴ", callback_data="move_down")],
+        [InlineKeyboardButton("⛶ ✙", callback_data="increase_size"),
+         InlineKeyboardButton("⛶ –", callback_data="decrease_size")],
         
         # Color selection buttons
-        [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
-         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
-         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
-         InlineKeyboardButton("⚫ Black", callback_data="color_black"),
-         InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
-         InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
-         InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
+        [InlineKeyboardButton("🔴", callback_data="color_red"),
+         InlineKeyboardButton("🔵", callback_data="color_blue"),
+         InlineKeyboardButton("🟢", callback_data="color_green"),
+         InlineKeyboardButton("⚫", callback_data="color_black"),
+         InlineKeyboardButton("🟡", callback_data="color_yellow"),
+         InlineKeyboardButton("🟠", callback_data="color_orange"),
+         InlineKeyboardButton("🟣", callback_data="color_purple")],
         
         # Font selection buttons
         [InlineKeyboardButton("🄵ᴀ", callback_data="font_deadly_advance_italic"),
@@ -149,14 +149,14 @@ async def photo_handler(_, message: Message) -> None:
     if file_size > 200 * 1024 * 1024:
         return await message.reply_text("Please provide a photo under 200MB.")
     try:
-        text = await message.reply("Processing...")
+        text = await message.reply("❖ ᴘʀᴏᴄᴇssɪɴɢ...")
         local_path = await media.download()
-        await text.edit_text("Processing your logo...")
+        await text.edit_text("❖ ᴘʀᴏᴄᴇssɪɴɢ ʏᴏᴜʀ ʟᴏɢᴏ...")
         await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf', 'blur_intensity': 0})
-        await message.reply_text("Please send the text you want for your logo.")
+        await message.reply_text("✎ ɴᴏᴡ sᴇɴᴅ ᴍᴇ ʏᴏᴜʀ ʟᴏɢᴏ ᴛᴇxᴛ.")
     except Exception as e:
         logger.error(e)
-        await text.edit_text("File processing failed.")
+        await text.edit_text("❖ ғɪʟᴇ ᴘʀᴏᴄᴇssɪɴɢ ғᴀɪʟᴇᴅ.")
 
 @app.on_message(filters.text & filters.private)
 async def text_handler(_, message: Message) -> None:
@@ -164,16 +164,16 @@ async def text_handler(_, message: Message) -> None:
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("Please send a photo first.")
+        await message.reply_text("❖ ғɪʀsᴛ sᴇɴᴅ ᴍᴇ ᴀ ᴘʜᴏᴛᴏ ғᴏʀ ʟᴏɢᴏ ʙᴀᴄᴋɢʀᴏᴜᴅ.")
         return
     
     if user_data['text']:
-        await message.reply_text("You have already entered text for your logo. Proceed with position adjustments.")
+        await message.reply_text("❖ ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ᴇɴᴛᴇʀᴇᴅ ᴛᴇxᴛ ғᴏʀ ʏᴏᴜʀ ʟᴏɢᴏ. ᴘʀᴏᴄᴇᴅ ᴡɪᴛʜ ᴘᴏsɪᴛɪᴏɴ ᴀᴅᴊᴜsᴛᴍᴇɴᴛs.")
         return
 
     user_text = message.text.strip()
     if not user_text:
-        await message.reply_text("You need to provide text for the logo.")
+        await message.reply_text("❖ ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴛᴇxᴛ ғᴏʀ ᴛʜᴇ ʟᴏɢᴏ.")
         return
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
