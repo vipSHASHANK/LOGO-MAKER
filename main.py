@@ -1,21 +1,19 @@
 import os
 import logging
 import tempfile
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from random import randint
+from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageFilter
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
-from buttons import get_adjustment_keyboard  # Importing the button function
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# User data store (this will be temporary storage)
+# User data store
 user_data_store = {}
 
-# Function to adjust font size dynamically
+# Adjust font size dynamically
 def get_dynamic_font(image, text, max_width, max_height, font_path):
     draw = ImageDraw.Draw(image)
     font_size = 100
@@ -27,8 +25,51 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Function to add text to the image with brushstroke and blur
-async def add_text_to_image(photo_path, text, font_path, text_position, size_multiplier, text_color, blur_radius):
+# New function to apply blur effect to the image
+def apply_blur(image_path, apply_blur=True):
+    try:
+        user_image = Image.open(image_path).convert("RGBA")
+        
+        if apply_blur:
+            # Apply blur effect to the image (excluding text)
+            blurred_image = user_image.filter(ImageFilter.GaussianBlur(radius=10))
+            return blurred_image
+        else:
+            # Return the original image (remove blur)
+            return user_image
+    except Exception as e:
+        logger.error(f"Error applying blur: {e}")
+        return None
+
+# Define inline keyboard for adjustments with color options
+def get_adjustment_keyboard(apply_blur=False):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
+         InlineKeyboardButton("➡️ Right", callback_data="move_right")],
+        [InlineKeyboardButton("⬆️ Up", callback_data="move_up"),
+         InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
+        [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
+         InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
+        [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
+         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
+         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
+         InlineKeyboardButton("⚫ Black", callback_data="color_black"),
+         InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
+         InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
+         InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
+        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
+         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
+         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
+         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
+         InlineKeyboardButton("Lobster", callback_data="font_lobster")],
+        # Blur buttons
+        [InlineKeyboardButton("Blur+", callback_data="blur_on") if not apply_blur else InlineKeyboardButton("Blur-", callback_data="blur_off")],
+        # Download button
+        [InlineKeyboardButton("Download Logo", callback_data="download_logo")]
+    ])
+
+# Add text to image with adjustments and color
+async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
@@ -36,149 +77,167 @@ async def add_text_to_image(photo_path, text, font_path, text_position, size_mul
         # Adjust font size based on size_multiplier
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
-
-        # Create a new image for drawing text (will be placed on top of the original)
-        text_image = Image.new("RGBA", user_image.size, (0, 0, 0, 0))
-        draw = ImageDraw.Draw(text_image)
+        
+        draw = ImageDraw.Draw(user_image)
         text_width, text_height = draw.textsize(text, font=font)
-
+        
         # Apply position adjustments
         x = text_position[0]
         y = text_position[1]
 
-        # Brushstroke effect (slightly offset multiple layers of text to create a stroke effect)
-        num_strokes = 8
-        for i in range(num_strokes):
-            offset_x = randint(-5, 5)
-            offset_y = randint(-5, 5)
-            draw.text((x + offset_x, y + offset_y), text, font=font, fill="white")  # White outline effect
+        # Outline effect in white (shadow effect)
+        outline_width = 3
+        for dx in [-outline_width, outline_width]:
+            for dy in [-outline_width, outline_width]:
+                draw.text((x + dx, y + dy), text, font=font, fill="white")
 
-        # Main text in the chosen color
+        # Apply main text color
         draw.text((x, y), text, font=font, fill=text_color)
 
-        # Blur the background (excluding the text area)
-        blurred_image = user_image.filter(ImageFilter.GaussianBlur(blur_radius))
-
-        # Composite the blurred image with the text image
-        final_image = Image.alpha_composite(blurred_image, text_image)
-
-        # Save the image as a temporary PNG file
+        # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
-            final_image.save(output_path, "PNG")
-
+            user_image.save(output_path, "PNG")
+        
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Function to convert PNG to JPG
-def convert_to_jpg(png_path):
-    try:
-        with Image.open(png_path) as img:
-            jpg_path = png_path.replace(".png", ".jpg")
-            img.convert("RGB").save(jpg_path, "JPEG")
-        return jpg_path
-    except Exception as e:
-        logger.error(f"Error converting PNG to JPG: {e}")
-        return None
+# Save user data
+async def save_user_data(user_id, data):
+    user_data_store[user_id] = data
+    logger.info(f"User {user_id} data saved: {data}")
 
-# Handle the callback query (button click responses)
+# Get user data
+async def get_user_data(user_id):
+    return user_data_store.get(user_id, None)
+
+# Initialize the Pyrogram Client
+session_name = "logo_creator_bot"
+app = Client(
+    session_name,
+    bot_token=Config.BOT_TOKEN,
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+    workdir=os.getcwd()
+)
+
+@app.on_message(filters.command("start"))
+async def start_command(_, message: Message) -> None:
+    welcome_text = (
+        "👋 Welcome to the Logo Creator Bot!\n\n"
+        "With this bot, you can create a custom logo by sending a photo and adding text to it!\n"
+    )
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]])
+    await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+
+@app.on_message(filters.photo & filters.private)
+async def photo_handler(_, message: Message) -> None:
+    media = message
+    file_size = media.photo.file_size if media.photo else 0
+    if file_size > 200 * 1024 * 1024:
+        return await message.reply_text("Please provide a photo under 200MB.")
+    try:
+        text = await message.reply("Processing...")
+        local_path = await media.download()
+        await text.edit_text("Processing your logo...")
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf', 'apply_blur': False})
+        await message.reply_text("Please send the text you want for your logo.")
+    except Exception as e:
+        logger.error(e)
+        await text.edit_text("File processing failed.")
+
+@app.on_message(filters.text & filters.private)
+async def text_handler(_, message: Message) -> None:
+    user_id = message.from_user.id
+    user_data = await get_user_data(user_id)
+
+    if not user_data:
+        await message.reply_text("Please send a photo first.")
+        return
+    
+    if user_data['text']:
+        await message.reply_text("You have already entered text for the logo. Proceed with position adjustments.")
+        return
+
+    user_text = message.text.strip()
+    if not user_text:
+        await message.reply_text("You need to provide text for the logo.")
+        return
+    user_data['text'] = user_text
+    await save_user_data(user_id, user_data)
+
+    # Generate logo and show adjustment options
+    font_path = user_data['font']
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+
+    if output_path is None:
+        await message.reply_text("There was an error generating the logo. Please try again.")
+        return
+
+    await message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
+
 @app.on_callback_query()
 async def callback_handler(_, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    user_data = await get_user_data(user_id)  # Replace with your method to retrieve user data
+    user_data = await get_user_data(user_id)
 
-    # If no photo is uploaded yet, prompt user to upload a photo first
     if not user_data or not user_data.get("photo_path"):
         await callback_query.answer("Please upload a photo first.", show_alert=True)
         return
 
-    # Handle button presses and update user data accordingly
-    if callback_query.data == "move_left":
-        user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
-    elif callback_query.data == "move_right":
-        user_data['text_position'] = (user_data['text_position'][0] + 20, user_data['text_position'][1])
-    elif callback_query.data == "move_up":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] - 20)
-    elif callback_query.data == "move_down":
-        user_data['text_position'] = (user_data['text_position'][0], user_data['text_position'][1] + 20)
-    elif callback_query.data == "increase_size":
-        user_data['size_multiplier'] *= 1.1
-    elif callback_query.data == "decrease_size":
-        user_data['size_multiplier'] *= 0.9
-    elif callback_query.data == "color_red":
-        user_data['text_color'] = "red"
-    elif callback_query.data == "color_blue":
-        user_data['text_color'] = "blue"
-    elif callback_query.data == "color_green":
-        user_data['text_color'] = "green"
-    elif callback_query.data == "color_black":
-        user_data['text_color'] = "black"
-    elif callback_query.data == "color_yellow":
-        user_data['text_color'] = "yellow"
-    elif callback_query.data == "color_orange":
-        user_data['text_color'] = "orange"
-    elif callback_query.data == "color_purple":
-        user_data['text_color'] = "purple"
-    elif callback_query.data == "blur_decrease":
-        user_data['blur_radius'] = max(user_data['blur_radius'] - 1, 0)
-    elif callback_query.data == "blur_increase":
-        user_data['blur_radius'] += 1
-    elif callback_query.data == "font_deadly_advance_italic":
-        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
-    elif callback_query.data == "font_deadly_advance":
-        user_data['font'] = "fonts/Deadly Advance.ttf"
-    elif callback_query.data == "font_trick_or_treats":
-        user_data['font'] = "fonts/Trick or Treats.ttf"
-    elif callback_query.data == "font_vampire_wars_italic":
-        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
-    elif callback_query.data == "font_lobster":
-        user_data['font'] = "fonts/FIGHTBACK.ttf"
-    elif callback_query.data == "download_jpg":
-        # Convert final image to JPG
-        final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], user_data['font'], user_data['text_position'], user_data['size_multiplier'], user_data['text_color'], user_data['blur_radius'])
-        
-        if final_image_path:
-            # Convert to JPG
-            jpg_path = convert_to_jpg(final_image_path)
-            if jpg_path:
-                with open(jpg_path, "rb") as jpg_file:
-                    await callback_query.message.reply_document(jpg_file, caption="Here is your logo as a JPG file.")
-                os.remove(jpg_path)  # Clean up the temporary JPG file after sending it
-                os.remove(final_image_path)  # Clean up the temporary PNG file after sending it
-            else:
-                await callback_query.message.reply_text("Error converting image to JPG.")
-        else:
-            await callback_query.message.reply_text("Error generating the final logo.")
-
-        return
-
-    # Save the updated user data
-    await save_user_data(user_id, user_data)
+    # Handle blur toggle logic
+    if callback_query.data == "blur_on":
+        blurred_image = apply_blur(user_data['photo_path'], apply_blur=True)
+        if blurred_image:
+            blurred_image.save(user_data['photo_path'])
+            user_data['apply_blur'] = True
+        await save_user_data(user_id, user_data)
+    elif callback_query.data == "blur_off":
+        original_image = apply_blur(user_data['photo_path'], apply_blur=False)
+        if original_image:
+            original_image.save(user_data['photo_path'])
+            user_data['apply_blur'] = False
+        await save_user_data(user_id, user_data)
 
     # Regenerate the logo with the new adjustments
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], font_path, user_data['text_position'], user_data['size_multiplier'], user_data['text_color'], user_data['blur_radius'])
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    # Update the image with the new adjustments
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard())
-    await callback_query.answer()  # Acknowledge the callback
+    # Update image and keep the current buttons
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard(apply_blur=user_data.get('apply_blur', False)))
+    await callback_query.answer()
 
+# Function to handle the download logo button
+@app.on_callback_query(filters.regex("download_logo"))
+async def download_logo(_, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data = await get_user_data(user_id)
 
-# Initialize the Pyrogram Client (this is required for the bot)
-app = Client(
-    "logo_creator_bot",
-    bot_token=Config.BOT_TOKEN,
-    api_id=Config.API_ID,
-    api_hash=Config.API_HASH
-)
+    if not user_data or not user_data.get("photo_path"):
+        await callback_query.answer("Please upload a photo first.", show_alert=True)
+        return
 
-# Start the bot
-if __name__ == "__main__":
-    app.run()
+    # Convert final image to JPEG
+    try:
+        user_image = Image.open(user_data['photo_path']).convert("RGB")
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+        output_path = temp_file.name
+        user_image.save(output_path, "JPEG")
+
+        # Send the image to the user
+        with open(output_path, "rb") as file:
+            await callback_query.message.reply_document(file, caption="Here is your logo in JPG format.")
+        os.remove(output_path)  # Clean up the temporary file
+    except Exception as e:
+        logger.error(f"Error generating the JPG: {e}")
+        await callback_query.answer("There was an error generating the JPG file. Please try again.", show_alert=True)
+
+# Run the bot
+app.run()
     
