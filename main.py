@@ -1,7 +1,7 @@
 import os
 import logging
 import tempfile
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageColor
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
@@ -25,7 +25,7 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Define inline keyboard for adjustments
+# Define inline keyboard for adjustments with color options
 def get_adjustment_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
@@ -33,11 +33,15 @@ def get_adjustment_keyboard():
         [InlineKeyboardButton("⬆️ Up", callback_data="move_up"),
          InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
         [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
-         InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")]
+         InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
+        [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
+         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
+         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
+         InlineKeyboardButton("⚫ Black", callback_data="color_black")]
     ])
 
-# Add text to image with adjustments
-async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier):
+# Add text to image with adjustments and color
+async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
@@ -53,14 +57,14 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         x = text_position[0]
         y = text_position[1]
 
-        # Outline effect
+        # Outline effect in white
         outline_width = 3
         for dx in [-outline_width, outline_width]:
             for dy in [-outline_width, outline_width]:
                 draw.text((x + dx, y + dy), text, font=font, fill="white")
 
-        # Red main text
-        draw.text((x, y), text, font=font, fill="red")
+        # Apply main text color
+        draw.text((x, y), text, font=font, fill=text_color)
 
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
@@ -110,7 +114,7 @@ async def photo_handler(_, message: Message) -> None:
         text = await message.reply("Processing...")
         local_path = await media.download()
         await text.edit_text("Processing your logo...")
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red'})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         logger.error(e)
@@ -138,7 +142,7 @@ async def text_handler(_, message: Message) -> None:
 
     # Generate logo and show adjustment options
     font_path = "fonts/FIGHTBACK.ttf"
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'])
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
@@ -155,7 +159,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Please upload a photo first.", show_alert=True)
         return
 
-    # Adjust position or size based on button pressed
+    # Adjust position, size, or color based on button pressed
     if callback_query.data == "move_left":
         user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
     elif callback_query.data == "move_right":
@@ -168,12 +172,24 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['size_multiplier'] *= 1.1
     elif callback_query.data == "decrease_size":
         user_data['size_multiplier'] *= 0.9
+    elif callback_query.data == "color_red":
+        user_data['text_color'] = "red"
+    elif callback_query.data == "color_blue":
+        user_data['text_color'] = "blue"
+    elif callback_query.data == "color_green":
+        user_data['text_color'] = "green"
+    elif callback_query.data == "color_black":
+        user_data['text_color'] = "black"
 
     await save_user_data(user_id, user_data)
 
     # Re-generate the image with new adjustments
     font_path = "fonts/FIGHTBACK.ttf"
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'])
+    text_color = ImageColor.getrgb(user_data.get("text_color", "red"))  # default to red
+    output_path = await add_text_to_image(
+        user_data['photo_path'], user_data['text'], None, font_path, 
+        user_data['text_position'], user_data['size_multiplier'], text_color
+    )
 
     if output_path is None:
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
