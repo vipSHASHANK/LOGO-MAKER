@@ -45,10 +45,10 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
         
         # Font selection buttons
-        [InlineKeyboardButton("Roboto", callback_data="font_roboto"),
-         InlineKeyboardButton("Pacifico", callback_data="font_pacifico"),
-         InlineKeyboardButton("Open Sans", callback_data="font_opensans"),
-         InlineKeyboardButton("Monospace", callback_data="font_monospace"),
+        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
+         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
+         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
+         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
          InlineKeyboardButton("Lobster", callback_data="font_lobster")]
     ])
 
@@ -126,7 +126,7 @@ async def photo_handler(_, message: Message) -> None:
         text = await message.reply("Processing...")
         local_path = await media.download()
         await text.edit_text("Processing your logo...")
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/FIGHTBACK.ttf'})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf'})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         logger.error(e)
@@ -153,7 +153,7 @@ async def text_handler(_, message: Message) -> None:
     await save_user_data(user_id, user_data)
 
     # Generate logo and show adjustment options
-    font_path = user_data['font']  # Default to FIGHTBACK font if not set
+    font_path = user_data['font']  # Default to Deadly Advance font if not set
     output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
@@ -199,22 +199,22 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
 
-    # Update font based on selection
-    elif callback_query.data == "font_roboto":
-        user_data['font'] = "fonts/Roboto-Regular.ttf"
-    elif callback_query.data == "font_pacifico":
-        user_data['font'] = "fonts/Pacifico-Regular.ttf"
-    elif callback_query.data == "font_opensans":
-        user_data['font'] = "fonts/OpenSans-Regular.ttf"
-    elif callback_query.data == "font_monospace":
-        user_data['font'] = "fonts/Monospace.ttf"
+    # Font selection logic
+    if callback_query.data == "font_deadly_advance_italic":
+        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
+    elif callback_query.data == "font_deadly_advance":
+        user_data['font'] = "fonts/Deadly Advance.ttf"
+    elif callback_query.data == "font_trick_or_treats":
+        user_data['font'] = "fonts/Trick or Treats.ttf"
+    elif callback_query.data == "font_vampire_wars_italic":
+        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
     elif callback_query.data == "font_lobster":
         user_data['font'] = "fonts/Lobster-Regular.ttf"
 
     await save_user_data(user_id, user_data)
 
     # Regenerate the logo with the new adjustments
-    font_path = user_data.get("font", "fonts/FIGHTBACK.ttf")  # Default to FIGHTBACK if no font is set
+    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")  # Default to Deadly Advance font if no font is set
     output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
@@ -227,3 +227,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
+    
