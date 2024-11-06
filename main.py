@@ -25,8 +25,8 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Define inline keyboard for adjustments with color options
-def get_adjustment_keyboard(blur_level):
+# Define inline keyboard for adjustments with color and blur options
+def get_adjustment_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
          InlineKeyboardButton("➡️ Right", callback_data="move_right")],
@@ -50,31 +50,25 @@ def get_adjustment_keyboard(blur_level):
          InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
          InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
          InlineKeyboardButton("Lobster", callback_data="font_lobster")],
-
-        # Blur level control
-        [InlineKeyboardButton("Blur +", callback_data="blur_plus"),
-         InlineKeyboardButton("Blur -", callback_data="blur_minus")]
+        
+        # Blur buttons
+        [InlineKeyboardButton("Blur+", callback_data="blur_plus"),
+         InlineKeyboardButton("Blur-", callback_data="blur_minus")]
     ])
 
-# Add text to image with adjustments and blur effect
-async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color, blur_level):
+# Add text to image with adjustments and color
+async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
-        # Open the image and convert it to RGBA
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
 
-        # Apply blur only to the background (not text)
-        image_copy = user_image.copy()  # Create a copy to blur the background
-        if blur_level > 0:
-            image_copy = image_copy.filter(ImageFilter.GaussianBlur(radius=blur_level))
-
-        # Add the text to the original (non-blurred) image
-        draw = ImageDraw.Draw(user_image)
+        # Adjust font size based on size_multiplier
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
-
+        
+        draw = ImageDraw.Draw(user_image)
         text_width, text_height = draw.textsize(text, font=font)
-
+        
         # Apply position adjustments
         x = text_position[0]
         y = text_position[1]
@@ -88,9 +82,6 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         # Apply main text color
         draw.text((x, y), text, font=font, fill=text_color)
 
-        # Merge the blurred background with the text on top
-        user_image = Image.alpha_composite(image_copy, user_image)
-
         # Save the image to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
@@ -99,6 +90,24 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
+        return None
+
+# Apply Blur Effect to the Image (without affecting the text)
+async def apply_blur(photo_path, blur_intensity):
+    try:
+        image = Image.open(photo_path).convert("RGBA")
+        
+        # Apply blur effect to the image (not text)
+        image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
+
+        # Save the modified image
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+            output_path = temp_file.name
+            image.save(output_path, "PNG")
+        
+        return output_path
+    except Exception as e:
+        logger.error(f"Error applying blur: {e}")
         return None
 
 # Save user data
@@ -139,7 +148,7 @@ async def photo_handler(_, message: Message) -> None:
         text = await message.reply("Processing...")
         local_path = await media.download()
         await text.edit_text("Processing your logo...")
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf', 'blur_level': 0})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'font': 'fonts/Deadly Advance.ttf', 'blur_intensity': 0})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         logger.error(e)
@@ -155,7 +164,7 @@ async def text_handler(_, message: Message) -> None:
         return
     
     if user_data['text']:
-        await message.reply_text("You have already entered text for the logo. Proceed with position adjustments.")
+        await message.reply_text("You have already entered text for your logo. Proceed with position adjustments.")
         return
 
     user_text = message.text.strip()
@@ -167,13 +176,13 @@ async def text_handler(_, message: Message) -> None:
 
     # Generate logo and show adjustment options
     font_path = user_data['font']  # Default to Deadly Advance font if not set
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_level'])
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    await message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard(user_data['blur_level']))
+    await message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
 
 @app.on_callback_query()
 async def callback_handler(_, callback_query: CallbackQuery):
@@ -212,26 +221,41 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
 
-    # Handle blur level increase and decrease
-    elif callback_query.data == "blur_plus":
-        user_data['blur_level'] += 10
+    # Font selection logic
+    if callback_query.data == "font_deadly_advance_italic":
+        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
+    elif callback_query.data == "font_deadly_advance":
+        user_data['font'] = "fonts/Deadly Advance.ttf"
+    elif callback_query.data == "font_trick_or_treats":
+        user_data['font'] = "fonts/Trick or Treats.ttf"
+    elif callback_query.data == "font_vampire_wars_italic":
+        user_data['font'] = "fonts/Vampire Wars Italic.ttf"
+    elif callback_query.data == "font_lobster":
+        user_data['font'] = "fonts/Lobster-Regular.ttf"
+
+    # Blur effect logic
+    if callback_query.data == "blur_plus":
+        user_data['blur_intensity'] = min(user_data.get('blur_intensity', 0) + 1, 10)  # Max blur = 10
     elif callback_query.data == "blur_minus":
-        user_data['blur_level'] = max(0, user_data['blur_level'] - 10)
+        user_data['blur_intensity'] = max(user_data.get('blur_intensity', 0) - 1, 0)  # Min blur = 0
 
     await save_user_data(user_id, user_data)
 
-    # Regenerate the logo with updated settings
-    font_path = user_data['font']
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_level'])
+    # Regenerate the logo with the new adjustments
+    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
-        await callback_query.answer("Error regenerating the image.", show_alert=True)
+        await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    # Update the photo with new image
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard(user_data['blur_level']))
+    # Apply blur
+    output_path = await apply_blur(output_path, user_data['blur_intensity'])
+
+    # Update the media and keep the same buttons
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with changes!"), reply_markup=get_adjustment_keyboard())
     await callback_query.answer()
 
 # Start the bot
 app.run()
-    
+        
