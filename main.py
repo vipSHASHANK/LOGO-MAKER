@@ -69,7 +69,7 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         x = text_position[0]
         y = text_position[1]
 
-        # Outline effect in white
+        # Outline effect in white (shadow effect)
         outline_width = 3
         for dx in [-outline_width, outline_width]:
             for dy in [-outline_width, outline_width]:
