@@ -97,12 +97,12 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         logger.error(f"Error adding text to image: {e}")
         return None
 
-# Apply Blur Effect to the Background Image (without affecting the text)
+# Apply Blur Effect to the Background Image Only (no blur on text)
 async def apply_blur(photo_path, blur_intensity):
     try:
         image = Image.open(photo_path).convert("RGBA")
         
-        # Apply blur effect to the image (not text)
+        # Create a blurred version of the background
         blurred_image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
 
         # Save the blurred image temporarily
@@ -164,29 +164,27 @@ async def text_handler(_, message: Message) -> None:
     user_data = await get_user_data(user_id)
 
     if not user_data:
-        await message.reply_text("❖ ғɪʀsᴛ sᴇɴᴅ ᴍᴇ ᴀ ᴘʜᴏᴛᴏ ғᴏʀ ʟᴏɢᴏ ʙᴀᴄᴋɢʀᴏᴜɴᴅ.")
+        await message.reply_text("❖ ғɪʀsᴛ sᴇɴᴅ ᴍᴇ ᴀ ᴘʜᴏᴛᴏ ғᴏʀ ʟᴏɢᴏ ʙᴀᴄᴋɢʀᴏɴᴜɴᴅ.")
         return
     
     if user_data['text']:
-        await message.reply_text("❖ ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ᴇɴᴛᴇʀᴇᴅ ᴛᴇxᴛ ғᴏʀ ʏᴏᴜʀ ʟᴏɢᴏ. ᴘʀᴏᴄᴇᴅ ᴡɪᴛʜ ᴘᴏsɪᴛɪᴏɴ ᴀᴅᴊᴜsᴛᴍᴇɴᴛs.")
+        await message.reply_text("❖ ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ᴇɴᴛᴇʀᴇᴅ ᴛᴇxᴛ!")
         return
-
+    
     user_text = message.text.strip()
     if not user_text:
-        await message.reply_text("❖ ᴛᴇxᴛ ᴄᴀɴɴᴏᴛ ʙᴇ ᴇᴍᴘᴛʏ!")
+        await message.reply_text("❖ ᴘʟᴇᴀsᴇ ᴇɴᴛᴇʀ ᴛᴇxᴛ.")
         return
-
+    
     user_data['text'] = user_text
-    await save_user_data(user_id, user_data)
-
-    # Create image with user text
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
     text_color = ImageColor.getrgb(user_data['text_color'])
+    
     output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], text_color)
 
-    # Apply blur if necessary
+    # Apply blur only on image
     if user_data['blur_intensity'] > 0:
-        blurred_image_path = await apply_blur(output_path, user_data['blur_intensity'])
+        blurred_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
         if blurred_image_path:
             output_path = blurred_image_path
 
@@ -202,7 +200,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Please upload a photo first.", show_alert=True)
         return
 
-    # Adjust position, size, or color based on button pressed
+    # Handle text adjustments
     if callback_query.data == "move_left":
         user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
     elif callback_query.data == "move_right":
@@ -230,7 +228,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
 
-    # Font selection logic
+# Font selection logic
     if callback_query.data == "font_deadly_advance_italic":
         user_data['font'] = "fonts/Monospace.ttf"
     elif callback_query.data == "font_deadly_advance":
@@ -242,61 +240,28 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "font_lobster":
         user_data['font'] = "fonts/FIGHTBACK.ttf"
 
-    # Blur intensity logic
+    # Adjust blur intensity
     if callback_query.data == "blur_plus":
-        user_data['blur_intensity'] += 1
-    elif callback_query.data == "blur_minus" and user_data['blur_intensity'] > 0:
-        user_data['blur_intensity'] -= 1
+        user_data['blur_intensity'] = min(user_data['blur_intensity'] + 1, 10)  # Max blur intensity of 10
+    elif callback_query.data == "blur_minus":
+        user_data['blur_intensity'] = max(user_data['blur_intensity'] - 1, 0)  # Min blur intensity of 0
 
     await save_user_data(user_id, user_data)
 
     # Regenerate the logo with the new adjustments
-    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")  # Default to Deadly Advance font if no font is set
-    text_color = ImageColor.getrgb(user_data['text_color'])
-    output_path = await add_text_to_image(
-        user_data['photo_path'], 
-        user_data['text'], 
-        None, 
-        font_path, 
-        user_data['text_position'], 
-        user_data['size_multiplier'], 
-        text_color
-    )
+    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
-    # Apply blur effect if needed
+    # Apply blur if needed
     if user_data['blur_intensity'] > 0:
-        blurred_image_path = await apply_blur(output_path, user_data['blur_intensity'])
+        blurred_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
         if blurred_image_path:
             output_path = blurred_image_path
 
-    if output_path is None:
-        await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
-        return
-
-    # Handle the Download Logo button
-    if callback_query.data == "download_logo":
-        # Convert to JPG format for download
-        jpg_path = output_path.replace(".png", ".jpg")
-        image = Image.open(output_path)
-        image = image.convert("RGB")
-        image.save(jpg_path, "JPEG")
-
-        # Send the final logo JPG to the user
-        await callback_query.message.reply_document(jpg_path, caption="❖ ᴛʜɪs ɪs ʏᴏᴜʀ ғɪɴᴀʟ ʟᴏɢᴏ!")
-
-        # Clean up the generated files
-        os.remove(output_path)
-        os.remove(jpg_path)
-
-        # Remove the buttons after sending the final image
-        await callback_query.message.edit_text("❖ ʏᴏᴜʀ ʟᴏɢᴏ ɪs ʀᴇᴀᴅʏ ғᴏʀ ᴅᴏᴡɴʟᴏᴀᴅ. ᴇɴᴊᴏʏ 😘!", reply_markup=None)
-        await callback_query.answer()
-        return
-
-    # If the button was not download, update the image with new changes
+    # Update image with new adjustments
     await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="❖ ʟᴏɢᴏ ᴄʜᴀɴɢɪɴɢ....!"), reply_markup=get_adjustment_keyboard())
     await callback_query.answer()
 
 if __name__ == "__main__":
     app.run()
-        
+
