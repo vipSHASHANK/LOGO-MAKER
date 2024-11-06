@@ -23,7 +23,11 @@ def get_dynamic_font(image, text, max_width, max_height):
     draw = ImageDraw.Draw(image)
     font_size = 100
     while font_size > 10:
-        font = ImageFont.truetype("fonts/FIGHTBACK.ttf", font_size)
+        try:
+            font = ImageFont.truetype("fonts/FIGHTBACK.ttf", font_size)
+        except Exception as e:
+            print(f"Error loading font: {e}")
+            return None, 0, 0
         text_width, text_height = draw.textsize(text, font=font)
         if text_width <= max_width and text_height <= max_height:
             return font, text_width, text_height
@@ -36,6 +40,8 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
         font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height)
+        if font is None:
+            return None  # Return None if font couldn't be loaded
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
         x = (max_width - text_width) // 2 + x_offset
@@ -66,12 +72,13 @@ async def start_command(_, message: Message) -> None:
 
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message) -> None:
-    media = message
     try:
+        media = message
         local_path = await media.download()
         await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'glow_color': 'red'})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
+        print(f"Error in photo handler: {e}")
         await message.reply_text("File processing failed.")
 
 @app.on_message(filters.text & filters.private)
@@ -88,7 +95,7 @@ async def text_handler(_, message: Message) -> None:
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
     
-    # After receiving the text, prompt the user to select font, position, size, and color
+    # After receiving the text, prompt the user to select position, size, and color
     position_buttons = create_position_buttons()
     size_buttons = create_size_buttons()
     color_buttons = create_color_buttons()
@@ -107,31 +114,37 @@ async def button_handler(_, callback_query):
     if not user_data:
         return await callback_query.answer("Please start over by sending a photo.")
     
-    # Handle position, size, and color adjustments here
-    if callback_query.data.startswith("position_"):
-        position = callback_query.data.split("_")[1]
-        # Update position logic
-        user_data['text_position'] = position
-    elif callback_query.data.startswith("size_"):
-        size = callback_query.data.split("_")[1]
-        # Update size logic
-        user_data['size_multiplier'] = float(size)
-    elif callback_query.data.startswith("color_"):
-        color = callback_query.data.split("_")[1]
-        # Update color logic
-        user_data['glow_color'] = color
+    try:
+        # Handle position, size, and color adjustments here
+        if callback_query.data.startswith("position_"):
+            position = callback_query.data.split("_")[1]
+            user_data['text_position'] = position
+        elif callback_query.data.startswith("size_"):
+            size = callback_query.data.split("_")[1]
+            user_data['size_multiplier'] = float(size)
+        elif callback_query.data.startswith("color_"):
+            color = callback_query.data.split("_")[1]
+            user_data['glow_color'] = color
 
-    await save_user_data(user_id, user_data)
+        await save_user_data(user_id, user_data)
 
-    # Regenerate the logo with updated settings
-    photo_path = user_data['photo_path']
-    text = user_data['text']
-    output_path = "output_logo.png"
-    await add_text_to_image(photo_path, text, output_path, user_data['text_position'], user_data['size_multiplier'], user_data['glow_color'])
-    
-    # Send the modified image to the user
-    await callback_query.message.reply_photo(photo=output_path, caption="Here's your logo!")
+        # Regenerate the logo with updated settings
+        photo_path = user_data['photo_path']
+        text = user_data['text']
+        output_path = "output_logo.png"
+        result_path = await add_text_to_image(photo_path, text, output_path, user_data['text_position'], user_data['size_multiplier'], user_data['glow_color'])
+        
+        if result_path:
+            # Send the modified image to the user
+            await callback_query.message.reply_photo(photo=result_path, caption="Here's your logo!")
+        else:
+            await callback_query.message.reply_text("Error generating the logo. Please try again.")
+
+    except Exception as e:
+        print(f"Error handling callback: {e}")
+        await callback_query.answer("An error occurred. Please try again later.")
 
 if __name__ == "__main__":
+    print("Bot is starting...")
     app.run()
     
