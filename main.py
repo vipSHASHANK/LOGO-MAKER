@@ -131,7 +131,17 @@ async def text_handler(_, message: Message) -> None:
     user_data['text'] = user_text
     await save_user_data(user_id, user_data)
 
-    # Directly define the buttons in the code
+    # Generate the logo immediately after user sends the text
+    local_path = user_data['photo_path']
+    text = user_data['text']
+    position = user_data['text_position']
+    size_multiplier = user_data['size_multiplier']
+    glow_color = user_data['glow_color']
+
+    output_path = f"output_logo_{user_id}.png"
+    await add_text_to_image(local_path, text, output_path, position, size_multiplier, glow_color)
+
+    # Define the position, size, and color buttons
     position_buttons = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Left", callback_data="position_left"),
@@ -161,7 +171,8 @@ async def text_handler(_, message: Message) -> None:
     # Combine all buttons into one list of lists
     keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
 
-    await message.reply_text("Choose position, size, and color for the logo text:", reply_markup=InlineKeyboardMarkup(keyboard))
+    # Send the generated logo with buttons
+    await message.reply_photo(photo=output_path, reply_markup=InlineKeyboardMarkup(keyboard))
 
 @app.on_callback_query(filters.regex("position_"))
 async def position_callback(_, callback_query):
@@ -200,7 +211,7 @@ async def color_callback(_, callback_query):
     await save_user_data(user_id, user_data)
 
     await callback_query.answer(f"Color set to {color}!")
-    await callback_query.message.edit_text(f"Color: {color}. Generating your logo...")
+    await callback_query.message.edit_text(f"Color: {color}. Regenerating your logo...")
 
     # Regenerate logo image with the selected settings
     local_path = user_data['photo_path']
