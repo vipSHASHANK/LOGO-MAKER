@@ -196,7 +196,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 # Font selection logic
     if callback_query.data == "font_deadly_advance_italic":
-        user_data['font'] = "fonts/UTTAM2.ttf"
+        user_data['font'] = "fonts/UTTAM4.otf"
     elif callback_query.data == "font_deadly_advance":
         user_data['font'] = "fonts/Deadly Advance.ttf"
     elif callback_query.data == "font_trick_or_treats":
