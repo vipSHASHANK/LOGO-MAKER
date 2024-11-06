@@ -45,18 +45,18 @@ def get_adjustment_keyboard(final_image_path=None):
          InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
         
         # Font selection buttons
-        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
-         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
-         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
-         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
-         InlineKeyboardButton("Lobster", callback_data="font_lobster")],
+        [InlineKeyboardButton("🄵ᴀ", callback_data="font_deadly_advance_italic"),
+         InlineKeyboardButton("🄵ʙ", callback_data="font_deadly_advance"),
+         InlineKeyboardButton("🄵ᴄ", callback_data="font_trick_or_treats"),
+         InlineKeyboardButton("🄵ᴅ", callback_data="font_vampire_wars_italic"),
+         InlineKeyboardButton("🄵ᴇ", callback_data="font_lobster")],
         
         # Blur buttons
-        [InlineKeyboardButton("Blur+", callback_data="blur_plus"),
-         InlineKeyboardButton("Blur-", callback_data="blur_minus")],
+        [InlineKeyboardButton("ʙʟᴜʀ +", callback_data="blur_plus"),
+         InlineKeyboardButton("ʙʟᴜʀ -", callback_data="blur_minus")],
 
         # Always show the Download button
-        [InlineKeyboardButton("Download Logo", callback_data="download_logo")]
+        [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ ʏᴏᴜʀ ʟᴏɢᴏ", callback_data="download_logo")]
     ]
     
     return InlineKeyboardMarkup(buttons)
