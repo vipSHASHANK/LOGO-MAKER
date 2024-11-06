@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageFilter
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
+from button import get_adjustment_keyboard  # Importing the function from button.py
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -24,42 +25,6 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
             return font
         font_size -= 5
     return font
-
-# Define inline keyboard for adjustments with color, blur options, and download button
-def get_adjustment_keyboard(final_image_path=None):
-    buttons = [
-        [InlineKeyboardButton("↼ʟᴇғᴛ", callback_data="move_left"),
-         InlineKeyboardButton("ʀɪɢʜᴛ⇁", callback_data="move_right")],
-        [InlineKeyboardButton("↿ᴜᴘ", callback_data="move_up"),
-         InlineKeyboardButton("⇃ᴅᴏᴡɴ", callback_data="move_down")],
-        [InlineKeyboardButton("⛶ ✙", callback_data="increase_size"),
-         InlineKeyboardButton("⛶ –", callback_data="decrease_size")],
-        
-        # Color selection buttons
-        [InlineKeyboardButton("🔴", callback_data="color_red"),
-         InlineKeyboardButton("🔵", callback_data="color_blue"),
-         InlineKeyboardButton("🟢", callback_data="color_green"),
-         InlineKeyboardButton("⚫", callback_data="color_black"),
-         InlineKeyboardButton("🟡", callback_data="color_yellow"),
-         InlineKeyboardButton("🟠", callback_data="color_orange"),
-         InlineKeyboardButton("🟣", callback_data="color_purple")],
-        
-        # Font selection buttons
-        [InlineKeyboardButton("🄵ᴀ", callback_data="font_deadly_advance_italic"),
-         InlineKeyboardButton("🄵ʙ", callback_data="font_deadly_advance"),
-         InlineKeyboardButton("🄵ᴄ", callback_data="font_trick_or_treats"),
-         InlineKeyboardButton("🄵ᴅ", callback_data="font_vampire_wars_italic"),
-         InlineKeyboardButton("🄵ᴇ", callback_data="font_lobster")],
-        
-        # Blur buttons
-        [InlineKeyboardButton("ʙʟᴜʀ +", callback_data="blur_plus"),
-         InlineKeyboardButton("ʙʟᴜʀ -", callback_data="blur_minus")],
-
-        # Always show the Download button
-        [InlineKeyboardButton("ᴅᴏᴡɴʟᴏᴀᴅ ʏᴏᴜʀ ʟᴏɢᴏ", callback_data="download_logo")]
-    ]
-    
-    return InlineKeyboardMarkup(buttons)
 
 # Apply Blur Effect to the Background Image Only (no blur on text)
 async def apply_blur(photo_path, blur_intensity):
@@ -189,7 +154,7 @@ async def text_handler(_, message: Message) -> None:
     # Now add text to the blurred image (if blurred) or original image
     output_path = await add_text_to_image(output_path, user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], text_color)
 
-    await message.reply_photo(output_path, caption="❖ ʏᴏᴜʀ ʟᴏɢᴏ ᴄʜᴀɴɢɪɴɢ....!", reply_markup=get_adjustment_keyboard(output_path))
+    await message.reply_photo(output_path, caption="❖ ʏᴏᴜʀ ʟᴏɢᴏ ᴄʜᴀɴɪɴɢ....!", reply_markup=get_adjustment_keyboard(output_path))
     await message.delete()
 
 @app.on_callback_query()
