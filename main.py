@@ -19,11 +19,10 @@ storage = MemoryStorage("memory_storage")  # नाम प्रदान कर
 
 # बॉट सेटअप
 app = Client(
-    "logo_creator_bot",  # यूनिक सत्र नाम
+    "logo_creator_bot",  # यहाँ Client का नाम पास किया गया है
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
-    session_name="logo_creator_session",  # यहाँ नाम सेट करें
     storage=storage  # स्टोरेज को क्लाइंट में पास करें
 )
 
