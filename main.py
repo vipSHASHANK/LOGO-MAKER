@@ -25,23 +25,18 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Define inline keyboard for adjustments with color options
-def get_adjustment_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
-         InlineKeyboardButton("➡️ Right", callback_data="move_right")],
-        [InlineKeyboardButton("⬆️ Up", callback_data="move_up"),
-         InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
-        [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
-         InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
-        [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
-         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
-         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
-         InlineKeyboardButton("⚫ Black", callback_data="color_black")]
-    ])
+# Gradient function for text coloring
+def gradient_color(draw, text, font, x, y, start_color, end_color):
+    # Calculate the gradient transition
+    text_width, text_height = draw.textsize(text, font=font)
+    for i in range(text_width):
+        r = int(start_color[0] * (1 - i / text_width) + end_color[0] * (i / text_width))
+        g = int(start_color[1] * (1 - i / text_width) + end_color[1] * (i / text_width))
+        b = int(start_color[2] * (1 - i / text_width) + end_color[2] * (i / text_width))
+        draw.text((x + i, y), text[i], font=font, fill=(r, g, b))
 
-# Add text to image with adjustments and color
-async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
+# Add text to image with adjustments, gradient, and shadow
+async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color, gradient=False, shadow=False):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
@@ -53,18 +48,18 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         draw = ImageDraw.Draw(user_image)
         text_width, text_height = draw.textsize(text, font=font)
         
-        # Apply position adjustments
-        x = text_position[0]
-        y = text_position[1]
-
-        # Outline effect in white
-        outline_width = 3
-        for dx in [-outline_width, outline_width]:
-            for dy in [-outline_width, outline_width]:
-                draw.text((x + dx, y + dy), text, font=font, fill="white")
-
-        # Apply main text color
-        draw.text((x, y), text, font=font, fill=text_color)
+        # Apply shadow effect
+        if shadow:
+            shadow_offset = 2
+            shadow_color = (0, 0, 0)  # Black shadow
+            draw.text((text_position[0] + shadow_offset, text_position[1] + shadow_offset), text, font=font, fill=shadow_color)
+        
+        # Apply gradient color effect if enabled
+        if gradient:
+            gradient_color(draw, text, font, text_position[0], text_position[1], start_color=(255, 0, 0), end_color=(0, 0, 255))  # Red to Blue gradient
+        else:
+            # Use the selected text color
+            draw.text(text_position, text, font=font, fill=text_color)
 
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
@@ -114,7 +109,7 @@ async def photo_handler(_, message: Message) -> None:
         text = await message.reply("Processing...")
         local_path = await media.download()
         await text.edit_text("Processing your logo...")
-        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red'})
+        await save_user_data(message.from_user.id, {'photo_path': local_path, 'text': '', 'text_position': (0, 0), 'size_multiplier': 1, 'text_color': 'red', 'gradient': False, 'shadow': False})
         await message.reply_text("Please send the text you want for your logo.")
     except Exception as e:
         logger.error(e)
@@ -142,7 +137,7 @@ async def text_handler(_, message: Message) -> None:
 
     # Generate logo and show adjustment options
     font_path = "fonts/FIGHTBACK.ttf"
-    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    output_path = await add_text_to_image(user_data['photo_path'], user_text, None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['gradient'], user_data['shadow'])
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
@@ -172,31 +167,45 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['size_multiplier'] *= 1.1
     elif callback_query.data == "decrease_size":
         user_data['size_multiplier'] *= 0.9
-    elif callback_query.data == "color_red":
-        user_data['text_color'] = "red"
-    elif callback_query.data == "color_blue":
-        user_data['text_color'] = "blue"
-    elif callback_query.data == "color_green":
-        user_data['text_color'] = "green"
-    elif callback_query.data == "color_black":
-        user_data['text_color'] = "black"
+    elif callback_query.data.startswith("color_"):
+        user_data['text_color'] = callback_query.data.split("_")[1]
+    elif callback_query.data == "gradient":
+        user_data['gradient'] = not user_data['gradient']
+    elif callback_query.data == "shadow":
+        user_data['shadow'] = not user_data['shadow']
 
     await save_user_data(user_id, user_data)
 
     # Re-generate the image with new adjustments
     font_path = "fonts/FIGHTBACK.ttf"
     text_color = ImageColor.getrgb(user_data.get("text_color", "red"))  # default to red
-    output_path = await add_text_to_image(
-        user_data['photo_path'], user_data['text'], None, font_path, 
-        user_data['text_position'], user_data['size_multiplier'], text_color
-    )
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], text_color, user_data['gradient'], user_data['shadow'])
 
     if output_path is None:
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path), reply_markup=get_adjustment_keyboard())
-    await callback_query.answer()
+    await callback_query.message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
 
-# Start the bot
+# Keyboard for color and adjustments
+def get_adjustment_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Move Left", callback_data="move_left"),
+         InlineKeyboardButton("Move Right", callback_data="move_right"),
+         InlineKeyboardButton("Move Up", callback_data="move_up"),
+         InlineKeyboardButton("Move Down", callback_data="move_down")],
+        [InlineKeyboardButton("Increase Size", callback_data="increase_size"),
+         InlineKeyboardButton("Decrease Size", callback_data="decrease_size")],
+        [InlineKeyboardButton("Red", callback_data="color_red"),
+         InlineKeyboardButton("Blue", callback_data="color_blue"),
+         InlineKeyboardButton("Green", callback_data="color_green"),
+         InlineKeyboardButton("Black", callback_data="color_black"),
+         InlineKeyboardButton("Yellow", callback_data="color_yellow"),
+         InlineKeyboardButton("Purple", callback_data="color_purple"),
+         InlineKeyboardButton("Orange", callback_data="color_orange"),
+         InlineKeyboardButton("Pink", callback_data="color_pink")],
+        [InlineKeyboardButton("Gradient", callback_data="gradient"),
+         InlineKeyboardButton("Shadow", callback_data="shadow")]
+    ])
+
 app.run()
