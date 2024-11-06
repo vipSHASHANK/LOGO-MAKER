@@ -91,12 +91,14 @@ async def save_user_data(user_id, data):
 async def get_user_data(user_id):
     return user_data_store.get(user_id, None)
 
-# Initialize the Pyrogram Client without the storage argument
+# Initialize the Pyrogram Client
+session_name = "logo_creator_bot"  # Set a session name to manage multiple sessions
 app = Client(
-    "logo_creator_bot",  # Client name
+    session_name,  # Use a session name for better session management
     bot_token=Config.BOT_TOKEN,
     api_id=Config.API_ID,
-    api_hash=Config.API_HASH
+    api_hash=Config.API_HASH,
+    workdir=os.getcwd()  # Make sure the working directory is set to the current directory
 )
 
 # Start command handler
@@ -259,4 +261,4 @@ async def size_handler(_, message: Message) -> None:
 
 if __name__ == "__main__":
     app.run()
-    
+        
