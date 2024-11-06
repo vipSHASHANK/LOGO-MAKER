@@ -13,56 +13,42 @@ logger = logging.getLogger(__name__)
 # User data store
 user_data_store = {}
 
-# Font options
-FONT_OPTIONS = [
-    {"name": "FIGHTBACK", "path": "fonts/FIGHTBACK.ttf"},
-    {"name": "Arial", "path": "fonts/Lobster-Regular.ttf"},
-    {"name": "Times New Roman", "path": "fonts/OpenSans-Regular.ttf"},
-    {"name": "Courier", "path": "fonts/Pacifico-Regular.ttf"},
-    {"name": "Verdana", "path": "fonts/Roboto-Regular.ttf"},
-]
-
 # Adjust font size dynamically
-def get_dynamic_font(image, text, max_width, max_height, font_path=None):
+def get_dynamic_font(image, text, max_width, max_height, font_path):
     draw = ImageDraw.Draw(image)
     font_size = 100
     while font_size > 10:
-        font = ImageFont.truetype(font_path or "fonts/FIGHTBACK.ttf", font_size)
+        font = ImageFont.truetype(font_path, font_size)
         text_width, text_height = draw.textsize(text, font=font)
         if text_width <= max_width and text_height <= max_height:
-            return font, text_width, text_height
+            return font
         font_size -= 5
-    return font, text_width, text_height
+    return font
 
-# Add text to image with red and white brush effect
-async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, text_color="red", font_path=None):
+# Add text to image with red brush and white outline
+async def add_text_to_image(photo_path, text, output_path, font_path):
     try:
         # Open the image
         user_image = Image.open(photo_path).convert("RGBA")
         max_width, max_height = user_image.size
-        
-        # Get the appropriate font and text size
-        font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height, font_path)
-        
-        # Adjust the text size according to the size multiplier
-        text_width = int(text_width * size_multiplier)
-        text_height = int(text_height * size_multiplier)
-        
-        # Ensure x_offset and y_offset are integers
-        x = (max_width - text_width) // 2 + int(x_offset)
-        y = (max_height - text_height) // 2 + int(y_offset)
-        text_position = (x, y)
 
-        # Draw the red brush text
+        # Get the appropriate font
+        font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
+        
+        # Calculate text position
         draw = ImageDraw.Draw(user_image)
-        draw.text(text_position, text, font=font, fill=text_color)
+        text_width, text_height = draw.textsize(text, font=font)
+        x = (max_width - text_width) // 2
+        y = (max_height - text_height) // 2
 
-        # Add white brush effect around the red text
-        white_offset = 2  # white color brush around the text
-        draw.text((x - white_offset, y - white_offset), text, font=font, fill="white")
-        draw.text((x + white_offset, y - white_offset), text, font=font, fill="white")
-        draw.text((x - white_offset, y + white_offset), text, font=font, fill="white")
-        draw.text((x + white_offset, y + white_offset), text, font=font, fill="white")
+        # White outline effect (brush)
+        outline_width = 3
+        for dx in [-outline_width, outline_width]:
+            for dy in [-outline_width, outline_width]:
+                draw.text((x + dx, y + dy), text, font=font, fill="white")
+
+        # Red main text
+        draw.text((x, y), text, font=font, fill="red")
 
         # Save the image to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
@@ -143,136 +129,16 @@ async def text_handler(_, message: Message) -> None:
     # Generate the logo immediately after user sends the text
     local_path = user_data['photo_path']
     text = user_data['text']
-    position = user_data['text_position']
-    size_multiplier = user_data['size_multiplier']
-    glow_color = user_data['glow_color']
+    font_path = "fonts/FIGHTBACK.ttf"  # Set your custom font path here
 
     # Use the simplified version of text addition
-    output_path = await add_text_to_image(local_path, text, None, x_offset=position[0], y_offset=position[1], size_multiplier=size_multiplier, text_color=glow_color)
+    output_path = await add_text_to_image(local_path, text, None, font_path)
 
     if output_path is None:
         await message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    # Define the position, size, and color buttons
-    position_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Left", callback_data="position_left"),
-            InlineKeyboardButton("Right", callback_data="position_right")
-        ],
-        [
-            InlineKeyboardButton("Up", callback_data="position_up"),
-            InlineKeyboardButton("Down", callback_data="position_down")
-        ]
-    ])
-
-    size_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Zoom In", callback_data="zoom_in"),
-            InlineKeyboardButton("Zoom Out", callback_data="zoom_out")
-        ]
-    ])
-
-    color_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Red", callback_data="color_red"),
-            InlineKeyboardButton("Blue", callback_data="color_blue"),
-            InlineKeyboardButton("White", callback_data="color_white")
-        ]
-    ])
-
-    # Combine all buttons into one list of lists
-    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
-
-    # Send the generated logo with buttons
-    await message.reply_photo(photo=output_path, reply_markup=InlineKeyboardMarkup(keyboard))
-
-@app.on_callback_query(filters.regex("position_"))
-async def position_callback(_, callback_query):
-    user_id = callback_query.from_user.id
-    position = callback_query.data.split("_")[1]
-    user_data = await get_user_data(user_id)
-    
-    # Update user data with new position
-    user_data['text_position'] = position
-    await save_user_data(user_id, user_data)
-
-    await callback_query.answer(f"Position set to {position}!")
-    await callback_query.message.edit_text(f"Position: {position}. Now, choose size and color!")
-
-@app.on_callback_query(filters.regex("zoom_"))
-async def zoom_callback(_, callback_query):
-    user_id = callback_query.from_user.id
-    zoom = callback_query.data.split("_")[1]
-    user_data = await get_user_data(user_id)
-
-    # Update size multiplier for zoom
-    if zoom == "in":
-        user_data['size_multiplier'] *= 2  # Zoom In increases text size
-    elif zoom == "out":
-        user_data['size_multiplier'] *= 0.5  # Zoom Out decreases text size
-    await save_user_data(user_id, user_data)
-
-    await callback_query.answer(f"Zoom {zoom} applied!")
-
-    # Regenerate the logo with the new size multiplier
-    local_path = user_data['photo_path']
-    text = user_data['text']
-    position = user_data['text_position']
-    size_multiplier = user_data['size_multiplier']
-    glow_color = user_data['glow_color']
-
-    output_path = await add_text_to_image(local_path, text, None, x_offset=position[0], y_offset=position[1], size_multiplier=size_multiplier, text_color=glow_color)
-
-    if output_path is None:
-        await callback_query.message.edit_text("There was an error generating the logo.")
-        return
-
-    # Define the buttons again
-    position_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Left", callback_data="position_left"),
-            InlineKeyboardButton("Right", callback_data="position_right")
-        ],
-        [
-            InlineKeyboardButton("Up", callback_data="position_up"),
-            InlineKeyboardButton("Down", callback_data="position_down")
-        ]
-    ])
-
-    size_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Zoom In", callback_data="zoom_in"),
-            InlineKeyboardButton("Zoom Out", callback_data="zoom_out")
-        ]
-    ])
-
-    color_buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Red", callback_data="color_red"),
-            InlineKeyboardButton("Blue", callback_data="color_blue"),
-            InlineKeyboardButton("White", callback_data="color_white")
-        ]
-    ])
-
-    keyboard = position_buttons.inline_keyboard + size_buttons.inline_keyboard + color_buttons.inline_keyboard
-
-    # Update the message with the new logo and buttons
-    media = InputMediaPhoto(media=output_path)
-    await callback_query.message.edit_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-
-@app.on_callback_query(filters.regex("color_"))
-async def color_callback(_, callback_query):
-    user_id = callback_query.from_user.id
-    color = callback_query.data.split("_")[1]
-    user_data = await get_user_data(user_id)
-
-    # Update user data with new color
-    user_data['glow_color'] = color
-    await save_user_data(user_id, user_data)
-
-    await callback_query.answer(f"Glow color set to {color}!")
-    await callback_query.message.edit_text(f"Glow color: {color}. Your logo is ready!")
+    await message.reply_photo(photo=output_path)
 
 # Start the bot
 app.run()
