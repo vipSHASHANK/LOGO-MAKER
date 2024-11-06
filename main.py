@@ -26,7 +26,7 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
         font_size -= 5
     return font
 
-# Define inline keyboard for adjustments with color options
+# Define inline keyboard for adjustments with color and font options
 def get_adjustment_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
@@ -60,7 +60,14 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("🟧 Peach", callback_data="color_peach"),
          InlineKeyboardButton("🔴 Burgundy", callback_data="color_burgundy"),
          InlineKeyboardButton("🟤 Coffee", callback_data="color_coffee"),
-         InlineKeyboardButton("🟡 Mustard", callback_data="color_mustard")]
+         InlineKeyboardButton("🟡 Mustard", callback_data="color_mustard")],
+
+        # Font selection buttons
+        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
+         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
+         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
+         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
+         InlineKeyboardButton("Lobster", callback_data="font_lobster")]
     ])
 
 # Add text to image with "brushstroke" effect
@@ -270,4 +277,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
-        
+    
