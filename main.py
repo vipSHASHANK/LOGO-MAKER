@@ -52,7 +52,7 @@ def get_adjustment_keyboard():
          InlineKeyboardButton("Lobster", callback_data="font_lobster")]
     ])
 
-# Add text to image with adjustments and color
+# Add text to image with adjustments and color, including brush-like outline effect
 async def add_text_to_image(photo_path, text, output_path, font_path, text_position, size_multiplier, text_color):
     try:
         user_image = Image.open(photo_path).convert("RGBA")
@@ -62,20 +62,25 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
         
+        # Create a drawing context
         draw = ImageDraw.Draw(user_image)
         text_width, text_height = draw.textsize(text, font=font)
         
-        # Apply position adjustments
+        # Calculate the position
         x = text_position[0]
         y = text_position[1]
 
-        # Outline effect in white (shadow effect)
-        outline_width = 3
-        for dx in [-outline_width, outline_width]:
-            for dy in [-outline_width, outline_width]:
-                draw.text((x + dx, y + dy), text, font=font, fill="white")
+        # Outline effect (brush-like stroke)
+        outline_width = 8  # You can adjust this value for the desired thickness
+        outline_color = "black"  # Color for the outline or brush effect
 
-        # Apply main text color
+        # Draw the outline/stroke
+        for dx in range(-outline_width, outline_width + 1):
+            for dy in range(-outline_width, outline_width + 1):
+                if dx**2 + dy**2 <= outline_width**2:  # Circular brush effect
+                    draw.text((x + dx, y + dy), text, font=font, fill=outline_color)
+
+        # Draw the main text in the specified color
         draw.text((x, y), text, font=font, fill=text_color)
 
         # Save the image
@@ -198,10 +203,8 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['text_color'] = "orange"
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
-
-    # Font selection logic
-    if callback_query.data == "font_deadly_advance_italic":
-        user_data['font'] = "fonts/Deadly Advance Italic (1).ttf"
+    elif callback_query.data == "font_deadly_advance_italic":
+        user_data['font'] = "fonts/Deadly Advance Italic.ttf"
     elif callback_query.data == "font_deadly_advance":
         user_data['font'] = "fonts/Deadly Advance.ttf"
     elif callback_query.data == "font_trick_or_treats":
@@ -209,22 +212,22 @@ async def callback_handler(_, callback_query: CallbackQuery):
     elif callback_query.data == "font_vampire_wars_italic":
         user_data['font'] = "fonts/Vampire Wars Italic.ttf"
     elif callback_query.data == "font_lobster":
-        user_data['font'] = "fonts/Lobster-Regular.ttf"
+        user_data['font'] = "fonts/Lobster.ttf"
 
+    # Save updated user data
     await save_user_data(user_id, user_data)
 
-    # Regenerate the logo with the new adjustments
-    font_path = user_data.get("font", "fonts/Deadly Advance.ttf")  # Default to Deadly Advance font if no font is set
-    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+    # Generate updated logo
+    output_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
 
     if output_path is None:
-        await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
+        await callback_query.answer("Error generating the updated logo.", show_alert=True)
         return
 
-    # Keep the buttons and update the image
-    await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard())
-    await callback_query.answer()
+    # Send updated image
+    await callback_query.edit_message_media(InputMediaPhoto(media=output_path))
 
+# Run the bot
 if __name__ == "__main__":
     app.run()
     
