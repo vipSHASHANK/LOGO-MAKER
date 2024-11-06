@@ -201,8 +201,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     if callback_query.data == "download_logo":
         # Regenerate the image with the user's settings
         final_image_path = await add_text_to_image(user_data['photo_path'], user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
-        final_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
-        final_image_path = await add_text_to_image(final_image_path, user_data['text'], None, user_data['font'], user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']))
+        final_image_path = await apply_blur(final_image_path, user_data['blur_intensity'])
 
         # Convert to JPG format for download
         jpg_path = final_image_path.replace(".png", ".jpg")
@@ -217,7 +216,11 @@ async def callback_handler(_, callback_query: CallbackQuery):
         os.remove(final_image_path)
         os.remove(jpg_path)
 
+        # Clean up the buttons after the download
+        await callback_query.message.edit_text("Your logo is ready for download. Enjoy!", reply_markup=None)
+
         await callback_query.answer()
 
 # Start the bot
 app.run()
+    
