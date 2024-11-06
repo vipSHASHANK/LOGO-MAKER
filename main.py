@@ -53,13 +53,12 @@ def get_adjustment_keyboard(final_image_path=None):
         
         # Blur buttons
         [InlineKeyboardButton("Blur+", callback_data="blur_plus"),
-         InlineKeyboardButton("Blur-", callback_data="blur_minus")]
+         InlineKeyboardButton("Blur-", callback_data="blur_minus")],
+
+        # Always show the Download button
+        [InlineKeyboardButton("Download Logo", callback_data="download_logo")]
     ]
     
-    # Add download button if final image is available
-    if final_image_path:
-        buttons.append([InlineKeyboardButton("Download Logo", callback_data="download_logo")])
-
     return InlineKeyboardMarkup(buttons)
 
 # Add text to image with adjustments and color
@@ -293,7 +292,7 @@ async def download_logo(_, callback_query: CallbackQuery):
     os.remove(jpg_path)
 
     await callback_query.answer()
-    
+
 # Start the bot
 app.run()
     
