@@ -61,6 +61,13 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
             # Use the selected text color
             draw.text(text_position, text, font=font, fill=text_color)
 
+        # Outline effect for the text (brush effect)
+        outline_width = 3
+        brush_color = "white"  # Keep the brush color white
+        for dx in [-outline_width, outline_width]:
+            for dy in [-outline_width, outline_width]:
+                draw.text((text_position[0] + dx, text_position[1] + dy), text, font=font, fill=brush_color)
+
         # Save the image
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
@@ -185,7 +192,8 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    await callback_query.message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
+    await callback_query.message.edit_media(InputMediaPhoto(media=output_path), reply_markup=get_adjustment_keyboard())
+    await callback_query.answer()
 
 # Keyboard for color and adjustments
 def get_adjustment_keyboard():
