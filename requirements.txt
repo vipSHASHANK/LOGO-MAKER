@@ -4,5 +4,6 @@ python-dotenv==1.0.1
 tgcrypto==1.2.5; sys_platform == 'linux'
 uvloop==0.19.0; sys_platform == 'linux'
 requests==2.28.1
-opencv-python==4.7.0.72  # For image processing with OpenCV
-Pillow==8.4.0  # For image enhancement using Pillow
+opencv-python==4.7.0.72
+Pillow==8.4.0
+Flask==2.2.5
