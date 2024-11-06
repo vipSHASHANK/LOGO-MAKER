@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 # इन-मेमोरी यूज़र डेटा स्टोर
 user_data_store = {}
 
-# MemoryStorage का उपयोग करें, और इसको Client के साथ जोड़ें
-storage = MemoryStorage()  # यहाँ कोई नाम की आवश्यकता नहीं
+# MemoryStorage का उपयोग करें, और इसे नाम के साथ पास करें
+storage = MemoryStorage("memory_storage")  # नाम प्रदान करें
 
 # बॉट सेटअप
 app = Client(
