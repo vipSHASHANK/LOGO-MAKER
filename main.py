@@ -3,7 +3,6 @@ import logging
 from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
-from pyrogram.storage import MemoryStorage  # सही से आयात करें
 from config import Config
 from private_buttons import create_font_buttons, create_position_buttons, create_size_buttons, create_color_buttons
 
@@ -11,22 +10,10 @@ from private_buttons import create_font_buttons, create_position_buttons, create
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# MemoryStorage का उपयोग करें
-storage = MemoryStorage("memory_storage")
-
-# बॉट सेटअप
-app = Client(
-    "logo_creator_bot",  # Client का नाम यहाँ पास किया गया है
-    bot_token=Config.BOT_TOKEN,
-    api_id=Config.API_ID,
-    api_hash=Config.API_HASH,
-    storage=storage  # स्टोरेज को क्लाइंट में पास करें
-)
-
-# यूज़र डेटा स्टोर
+# User data store
 user_data_store = {}
 
-# फ़ॉन्ट विकल्प (अपने फ़ॉन्ट्स का पथ)
+# Font options
 FONT_OPTIONS = [
     {"name": "FIGHTBACK", "path": "fonts/FIGHTBACK.ttf"},
     {"name": "Arial", "path": "fonts/Lobster-Regular.ttf"},
@@ -35,50 +22,50 @@ FONT_OPTIONS = [
     {"name": "Verdana", "path": "fonts/Roboto-Regular.ttf"},
 ]
 
-# फ़ॉन्ट साइज को गतिशील रूप से समायोजित करने का फ़ंक्शन
+# Function to dynamically adjust font size
 def get_dynamic_font(image, text, max_width, max_height, font_path=None):
     draw = ImageDraw.Draw(image)
     font_size = 100
     while font_size > 10:
         font = ImageFont.truetype(font_path or "fonts/FIGHTBACK.ttf", font_size)
         text_width, text_height = draw.textsize(text, font=font)
-        
+
         if text_width <= max_width and text_height <= max_height:
             return font, text_width, text_height
-        
+
         font_size -= 5
 
     return font, text_width, text_height
 
-# 3D टेक्स्ट इफेक्ट जोड़ने का फ़ंक्शन
+# Function to add 3D text effect
 def add_3d_text(draw, position, text, font, glow_color, text_color, shadow_offset=(5, 5), glow_strength=5):
     x, y = position
     
-    # शैडो
+    # Shadow effect
     shadow_x = x + shadow_offset[0]
     shadow_y = y + shadow_offset[1]
     draw.text((shadow_x, shadow_y), text, font=font, fill="black")
 
-    # ग्लो प्रभाव
+    # Glow effect
     for offset in range(1, glow_strength + 1):
         draw.text((x - offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y - offset), text, font=font, fill=glow_color)
         draw.text((x - offset, y + offset), text, font=font, fill=glow_color)
         draw.text((x + offset, y + offset), text, font=font, fill=glow_color)
 
-    # मुख्य टेक्स्ट
+    # Main text
     draw.text((x, y), text, font=font, fill=text_color)
 
-# चित्र पर टेक्स्ट जोड़ने का फ़ंक्शन
+# Function to add text to the image
 async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=0, size_multiplier=1, glow_color="red", font_path=None):
     try:
         user_image = Image.open(photo_path)
-        user_image = user_image.convert("RGBA")  # RGBA मोड में बदलें
+        user_image = user_image.convert("RGBA")  # Convert to RGBA mode
 
         max_width, max_height = user_image.size
         font, text_width, text_height = get_dynamic_font(user_image, text, max_width, max_height, font_path)
 
-        # टेक्स्ट आकार समायोजित करें
+        # Adjust text size
         text_width = int(text_width * size_multiplier)
         text_height = int(text_height * size_multiplier)
 
@@ -92,19 +79,27 @@ async def add_text_to_image(photo_path, text, output_path, x_offset=0, y_offset=
         user_image.save(output_path, "PNG")
         return output_path
     except Exception as e:
-        logger.error(f"चित्र में टेक्स्ट जोड़ने में त्रुटि: {e}")
+        logger.error(f"Error adding text to image: {e}")
         return None
 
-# यूज़र डेटा सेव करने का फ़ंक्शन
+# Function to save user data
 async def save_user_data(user_id, data):
     user_data_store[user_id] = data
-    logger.info(f"यूज़र {user_id} का डेटा सेव किया गया: {data}")
+    logger.info(f"User {user_id} data saved: {data}")
 
-# यूज़र डेटा प्राप्त करने का फ़ंक्शन
+# Function to get user data
 async def get_user_data(user_id):
     return user_data_store.get(user_id, None)
 
-# स्टार्ट कमांड हैंडलर
+# Initialize the Pyrogram Client without the storage argument
+app = Client(
+    "logo_creator_bot",  # Client name
+    bot_token=Config.BOT_TOKEN,
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH
+)
+
+# Start command handler
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     """Welcomes the user with instructions."""
@@ -120,7 +115,7 @@ async def start_command(_, message: Message) -> None:
 
     await message.reply_text(welcome_text, reply_markup=reply_markup, disable_web_page_preview=True)
 
-# फोटो हैंडलर
+# Photo handler
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message) -> None:
     """Handles incoming photo messages."""
@@ -144,7 +139,7 @@ async def photo_handler(_, message: Message) -> None:
         logger.error(e)
         await text.edit_text("File processing failed.")
 
-# टेक्स्ट हैंडलर
+# Text handler
 @app.on_message(filters.text & filters.private)
 async def text_handler(_, message: Message) -> None:
     """Handles incoming text for logo creation."""
@@ -170,7 +165,7 @@ async def text_handler(_, message: Message) -> None:
         reply_markup=InlineKeyboardMarkup([font_buttons])
     )
 
-# फ़ॉन्ट चयन हैंडलर
+# Font selection handler
 @app.on_message(filters.regex("font_") & filters.private)
 async def font_handler(_, message: Message) -> None:
     """Handles font selection."""
@@ -193,7 +188,7 @@ async def font_handler(_, message: Message) -> None:
         color_buttons = create_color_buttons()
         await message.reply_text("Choose a color for your logo text:", reply_markup=InlineKeyboardMarkup(color_buttons))
 
-# रंग चयन हैंडलर
+# Color selection handler
 @app.on_message(filters.regex("color_") & filters.private)
 async def color_handler(_, message: Message) -> None:
     """Handles color selection."""
@@ -213,7 +208,7 @@ async def color_handler(_, message: Message) -> None:
     position_buttons = create_position_buttons()
     await message.reply_text("Choose the position for your logo text:", reply_markup=InlineKeyboardMarkup(position_buttons))
 
-# स्थिति चयन हैंडलर
+# Position selection handler
 @app.on_message(filters.regex("position_") & filters.private)
 async def position_handler(_, message: Message) -> None:
     """Handles position selection."""
@@ -233,7 +228,7 @@ async def position_handler(_, message: Message) -> None:
     size_buttons = create_size_buttons()
     await message.reply_text("Choose the size for your logo:", reply_markup=InlineKeyboardMarkup(size_buttons))
 
-# आकार चयन हैंडलर
+# Size selection handler
 @app.on_message(filters.regex("size_") & filters.private)
 async def size_handler(_, message: Message) -> None:
     """Handles size selection."""
