@@ -6,6 +6,7 @@ from random import randint
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
+from buttons import get_adjustment_keyboard  # Importing the button function
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -25,40 +26,6 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
             return font
         font_size -= 5
     return font
-
-# Define inline keyboard for adjustments with color options
-def get_adjustment_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⬅️ Left", callback_data="move_left"),
-         InlineKeyboardButton("➡️ Right", callback_data="move_right")],
-        [InlineKeyboardButton("⬆️ Up", callback_data="move_up"),
-         InlineKeyboardButton("⬇️ Down", callback_data="move_down")],
-        [InlineKeyboardButton("🔍 Increase", callback_data="increase_size"),
-         InlineKeyboardButton("🔎 Decrease", callback_data="decrease_size")],
-        
-        # Color selection buttons
-        [InlineKeyboardButton("🔴 Red", callback_data="color_red"),
-         InlineKeyboardButton("🔵 Blue", callback_data="color_blue"),
-         InlineKeyboardButton("🟢 Green", callback_data="color_green"),
-         InlineKeyboardButton("⚫ Black", callback_data="color_black"),
-         InlineKeyboardButton("🟡 Yellow", callback_data="color_yellow"),
-         InlineKeyboardButton("🟠 Orange", callback_data="color_orange"),
-         InlineKeyboardButton("🟣 Purple", callback_data="color_purple")],
-        
-        # Blur effect buttons
-        [InlineKeyboardButton("🔵 Blur -", callback_data="blur_decrease"),
-         InlineKeyboardButton("🔴 Blur +", callback_data="blur_increase")],
-        
-        # Font selection buttons
-        [InlineKeyboardButton("Deadly Advance Italic", callback_data="font_deadly_advance_italic"),
-         InlineKeyboardButton("Deadly Advance", callback_data="font_deadly_advance"),
-         InlineKeyboardButton("Trick or Treats", callback_data="font_trick_or_treats"),
-         InlineKeyboardButton("Vampire Wars Italic", callback_data="font_vampire_wars_italic"),
-         InlineKeyboardButton("Lobster", callback_data="font_lobster")],
-
-        # Download button
-        [InlineKeyboardButton("Download JPG", callback_data="download_jpg")]
-    ])
 
 # Add text to image with "brushstroke" effect, and blur functionality
 async def add_text_to_image(photo_path, text, font_path, text_position, size_multiplier, text_color, blur_radius):
@@ -191,12 +158,10 @@ async def text_handler(_, message: Message) -> None:
     # Generate logo and show adjustment options
     font_path = user_data['font']  # Default to Deadly Advance font if not set
     output_path = await add_text_to_image(user_data['photo_path'], user_text, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_radius'])
-
-    if output_path is None:
-        await message.reply_text("There was an error generating the logo. Please try again.")
-        return
-
-    await message.reply_photo(photo=output_path, reply_markup=get_adjustment_keyboard())
+    if output_path:
+        await message.reply_photo(output_path, caption="Here is your logo! Adjust it as needed:", reply_markup=get_adjustment_keyboard())
+    else:
+        await message.reply_text("Error generating the logo. Please try again.")
 
 @app.on_callback_query()
 async def callback_handler(_, callback_query: CallbackQuery):
@@ -207,7 +172,6 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.answer("Please upload a photo first.", show_alert=True)
         return
 
-    # Adjust position, size, or color based on button pressed
     if callback_query.data == "move_left":
         user_data['text_position'] = (user_data['text_position'][0] - 20, user_data['text_position'][1])
     elif callback_query.data == "move_right":
@@ -283,4 +247,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
-    
+        
