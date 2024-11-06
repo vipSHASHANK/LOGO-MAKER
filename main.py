@@ -247,10 +247,30 @@ async def callback_handler(_, callback_query: CallbackQuery):
         await callback_query.message.reply_text("There was an error generating the logo. Please try again.")
         return
 
-    # Keep the buttons and update the image
+    # Handle the Download Logo button
+    if callback_query.data == "download_logo":
+        # Convert to JPG format for download
+        jpg_path = output_path.replace(".png", ".jpg")
+        image = Image.open(output_path)
+        image = image.convert("RGB")
+        image.save(jpg_path, "JPEG")
+
+        # Send the final logo JPG to the user
+        await callback_query.message.reply_document(jpg_path, caption="Here is your final logo!")
+
+        # Clean up the generated files
+        os.remove(output_path)
+        os.remove(jpg_path)
+
+        # Remove the buttons after sending the final image
+        await callback_query.message.edit_text("Your logo is ready for download. Enjoy!", reply_markup=None)
+        await callback_query.answer()
+        return
+
+    # If the button was not download, update the image with new changes
     await callback_query.message.edit_media(InputMediaPhoto(media=output_path, caption="Here is your logo with the changes!"), reply_markup=get_adjustment_keyboard())
     await callback_query.answer()
 
-# Start the bot
-app.run()
+if __name__ == "__main__":
+    app.run()
     
