@@ -72,6 +72,9 @@ def get_adjustment_keyboard():
         # Blur adjustment buttons
         [InlineKeyboardButton("Blur -", callback_data="blur_decrease"),
          InlineKeyboardButton("Blur +", callback_data="blur_increase")],
+
+        # Download button
+        [InlineKeyboardButton("Download JPG", callback_data="download_jpg")]
     ])
 
 # Add text to image with "brushstroke" effect, and blur functionality
@@ -118,6 +121,24 @@ async def add_text_to_image(photo_path, text, font_path, text_position, size_mul
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
+        return None
+
+# Function to convert image to JPG format
+def convert_to_jpg(png_path):
+    try:
+        # Open the PNG image
+        image = Image.open(png_path)
+
+        # Convert RGBA to RGB (necessary for JPG format)
+        rgb_image = image.convert("RGB")
+
+        # Create a temporary file for the JPG image
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+            jpg_path = temp_file.name
+            rgb_image.save(jpg_path, "JPEG", quality=90)  # 90% quality for JPG
+            return jpg_path
+    except Exception as e:
+        logger.error(f"Error converting PNG to JPG: {e}")
         return None
 
 # Save user data
@@ -174,7 +195,7 @@ async def text_handler(_, message: Message) -> None:
         return
     
     if user_data['text']:
-        await message.reply_text("You have already entered text for the logo. Proceed with position adjustments.")
+        await message.reply_text("You have already entered text for your logo. Proceed with position adjustments.")
         return
 
     user_text = message.text.strip()
@@ -185,7 +206,7 @@ async def text_handler(_, message: Message) -> None:
     await save_user_data(user_id, user_data)
 
     # Generate logo and show adjustment options
-    font_path = user_data['font']  # Default to Deadly Advance font if not set
+    font_path = user_data['font']
     output_path = await add_text_to_image(user_data['photo_path'], user_text, font_path, user_data['text_position'], user_data['size_multiplier'], ImageColor.getrgb(user_data['text_color']), user_data['blur_radius'])
 
     if output_path is None:
@@ -230,12 +251,19 @@ async def callback_handler(_, callback_query: CallbackQuery):
         user_data['text_color'] = "orange"
     elif callback_query.data == "color_purple":
         user_data['text_color'] = "purple"
-
-    # Blur handling
     elif callback_query.data == "blur_decrease":
         user_data['blur_radius'] = max(user_data['blur_radius'] - 1, 0)  # Prevent going below 0
     elif callback_query.data == "blur_increase":
         user_data['blur_radius'] += 1  # Increase blur radius
+    elif callback_query.data == "download_jpg":
+        # Convert the current image to JPG and send it
+        png_path = user_data.get("photo_path")
+        jpg_path = convert_to_jpg(png_path)
+        if jpg_path:
+            with open(jpg_path, "rb") as jpg_file:
+                await callback_query.message.reply_document(jpg_file, caption="Here is your logo as a JPG file.")
+            os.remove(jpg_path)  # Clean up the temporary JPG file after sending it
+            return
 
     await save_user_data(user_id, user_data)
 
@@ -253,4 +281,4 @@ async def callback_handler(_, callback_query: CallbackQuery):
 
 if __name__ == "__main__":
     app.run()
-        
+    
