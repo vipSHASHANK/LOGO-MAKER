@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageFilter
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, InputMediaPhoto
 from config import Config
-from button import get_adjustment_keyboard  # Importing the function from button.py
+from buttons import get_adjustment_keyboard  # Importing the function from button.py
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
