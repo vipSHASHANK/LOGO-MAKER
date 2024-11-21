@@ -102,7 +102,7 @@ app = Client(
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     welcome_text = (
-    "╭────────〔❨✧✧❩〕────────╮\n‎ ‎  ‌‎   ‌‎Wᴇʟᴄᴏᴍᴇ ᴛᴏ Loɢᴏ Cʀᴇᴀᴛᴏʀ Bᴏᴛ!\n ━━━━━━━━━༻❁༺━━━━━━━━━\n"
+    "╭────────〔❨✧✧❩〕────────╮\n‎ ‎  ‌‎   ‌‎Wᴇʟᴄᴏᴍᴇ ᴛᴏ Loɢᴏ Cʀᴇᴀᴛᴏʀ Bᴏᴛ!\n   ━━━━━━━━━༻❁༺━━━━━━━━━\n"
     "‌‌‌‌‎ Yᴏᴜ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ\n‌‌‎ ‌‌‌‎    ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ \n‌‌‌‎   ‌‎   ‌‎ ‌‎   ᴛᴇxᴛ ᴛᴏ ɪᴛ!\n╰────────〔❨✧✧❩〕────────╯"
 )
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]])
