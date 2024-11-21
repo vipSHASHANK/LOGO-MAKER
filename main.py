@@ -105,7 +105,7 @@ async def start_command(_, message: Message) -> None:
     "╭────────〔❨✧✧❩〕────────╮\n‎ ‎  ‌‎   ‌‎Wᴇʟᴄᴏᴍᴇ ᴛᴏ Loɢᴏ Cʀᴇᴀᴛᴏʀ Bᴏᴛ!\n   ━━━━━━━━━༻❁༺━━━━━━━━━\n"
     "‌‌‌‌       ‎Yᴏᴜ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ\n‌‌               ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ \n‌‌‌‎                         ᴛᴇxᴛ ᴛᴏ ɪᴛ!\n╰────────〔❨✧✧❩〕────────╯"
 )
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("␥ ˹ ʙᴀʙʏ-ᴍᴜsɪᴄ ™˼𓅂 ␥", url="https://t.me/BABY09_WORLD")]])
     await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
 
 @app.on_message(filters.photo & filters.private)
