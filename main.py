@@ -102,9 +102,9 @@ app = Client(
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     welcome_text = (
-        "👋 Welcome to the Logo Creator Bot!\n\n"
-        "With this bot, you can create a custom logo by sending a photo and adding text to it!\n"
-    )
+    "╭────────〔❨✧✧❩〕────────╮\n  Wᴇʟᴄᴏᴍᴇ ᴛᴏ Loɢᴏ Cʀᴇᴀᴛᴏʀ Bᴏᴛ!\n ━━━━━━━━━༻❁༺━━━━━━━━━\n"
+    "  Yᴏᴜ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ\n      ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ \n          ᴛᴇxᴛ ᴛᴏ ɪᴛ!\n╰────────〔❨✧✧❩〕────────╯"
+)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Join 👋", url="https://t.me/BABY09_WORLD")]])
     await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
 
