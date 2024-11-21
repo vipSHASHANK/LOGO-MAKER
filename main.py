@@ -233,11 +233,31 @@ async def callback_handler(_, callback_query: CallbackQuery):
     await callback_query.answer()
 
     # Handle the download button callback
-    if callback_query.data == "download_logo":
-        await callback_query.answer("Downloading your logo...")
+if callback_query.data == "download_logo":
+    user_id = callback_query.from_user.id
+    user_data = await get_user_data(user_id)
+
+    # Ensure user data exists and contains the generated output path
+    if not user_data or not user_data.get("photo_path"):
+        await callback_query.answer("❖ ᴘʟᴇᴀsᴇ ᴄʀᴇᴀᴛᴇ ᴀ ʟᴏɢᴏ ғɪʀsᴛ.", show_alert=True)
+        return
+
+    output_path = user_data.get("output_path")
+    if not output_path or not os.path.exists(output_path):
+        await callback_query.answer("❖ ʏᴏᴜʀ ʟᴏɢᴏ ɪs ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ʏᴇᴛ. ᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ!", show_alert=True)
+        return
+
+    try:
+        await callback_query.answer("❖ ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ʏᴏᴜʀ ʟᴏɢᴏ...")
         with open(output_path, "rb") as file:
-            await callback_query.message.reply_document(file, caption="【 ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ 】")
+            await callback_query.message.reply_document(
+                file, caption="❖ ʏᴏᴜʀ ʟᴏɢᴏ ɪs ʀᴇᴀᴅʏ! [ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ]"
+            )
+        # Disable further editing options after download
         await callback_query.message.edit_reply_markup(reply_markup=None)
+    except Exception as e:
+        logger.error(f"Error while handling download: {e}")
+        await callback_query.answer("❖ ғᴀɪʟᴇᴅ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ʏᴏᴜʀ ʟᴏɢᴏ. ᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ!", show_alert=True)
 
 # Flask app to listen on port 8000
 app_flask = Flask(__name__)
