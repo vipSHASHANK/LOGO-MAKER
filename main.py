@@ -102,10 +102,20 @@ app = Client(
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     welcome_text = (
-    "╭────────〔༻༺〕────────╮\n‎ ‎  ‌‎   ‌‎Wᴇʟᴄᴏᴍᴇ ᴛᴏ Loɢᴏ Cʀᴇᴀᴛᴏʀ Bᴏᴛ!\n   ━━━━━━━━━༻❁༺━━━━━━━━━\n"
-    "‌‌‌‌       ‎Yᴏᴜ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ\n‌‌               ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ \n‌‌‌‎                         ᴛᴇxᴛ ᴛᴏ ɪᴛ!\n╰────────〔༻༺〕────────╯"
+    "**╭────── ˹ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ˼ ──────⏤͟͟͞͞★**\n"
+            "**┆● ʜᴇʏ ɪ ᴀᴍ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ**\n"
+            "**┆● ᴡɪᴛʜ ᴘᴏᴡᴇʀғᴜʟ ғᴇᴀᴛᴜʀᴇs**\n"
+            "**┆● ᴀᴅᴅᴇᴅ ᴍᴀɴʏ sᴛʏʟɪsʜ ғᴏɴᴛ**\n"
+            "**╰─────────────────────────**\n"
+            "**──────────────────────────**\n"
+            "**❖ ɪ ᴀᴍ ᴀ ᴠᴇʀʏ ᴘᴏᴡᴇʀғᴜʟʟ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ**\n"
+            "**sᴇɴᴅ ᴀɴʏ ᴘɪᴄ ᴡʜɪᴄʜ ʏᴏᴜ ᴡᴀɴᴛ ᴀs ᴀ ʙᴀᴄᴋɢʀᴏᴜɴᴅ**\n"
+            "**ɪ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ ᴛᴇxᴛ ᴛᴏ ɪᴛ**\n"
+            "**──────────────────────────**\n"
+            "**❖ sᴇɴᴅ » ᴀɴʏ ᴘʜᴏᴛᴏ ғᴏʀ ᴄʀᴇᴀᴛᴇ ʟᴏɢᴏ**\n"
+            "**──────────────────────────**"
 )
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("␥ ˹ ʙᴀʙʏ-ᴍᴜsɪᴄ ™˼𓅂 ␥", url="https://t.me/BABY09_WORLD")]])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("▪️sᴛʀᴀɴɢᴇʀ-ᴀssᴏᴄɪᴀᴛɪᴏɴ▪️", url="https://t.me/BABY09_WORLD")]])
     await message.reply_photo(
 photo="https://files.catbox.moe/apx9z5.jpg",
 welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
