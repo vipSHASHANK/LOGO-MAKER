@@ -106,7 +106,9 @@ async def start_command(_, message: Message) -> None:
     "‌‌‌‌       ‎Yᴏᴜ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ\n‌‌               ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ \n‌‌‌‎                         ᴛᴇxᴛ ᴛᴏ ɪᴛ!\n╰────────〔༻༺〕────────╯"
 )
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("␥ ˹ ʙᴀʙʏ-ᴍᴜsɪᴄ ™˼𓅂 ␥", url="https://t.me/BABY09_WORLD")]])
-    await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
+    await message.reply_photo(
+photo="https://files.catbox.moe/apx9z5.jpg",
+welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
 
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message) -> None:
