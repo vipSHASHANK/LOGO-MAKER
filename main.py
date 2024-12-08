@@ -32,7 +32,7 @@ def get_dynamic_font(image, text, max_width, max_height, font_path):
 async def apply_blur(photo_path, blur_intensity):
     try:
         image = Image.open(photo_path).convert("RGBA")
-        
+
         # Create a blurred version of the background
         blurred_image = image.filter(ImageFilter.GaussianBlur(radius=blur_intensity))
 
@@ -53,10 +53,10 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         # Adjust font size based on size_multiplier
         font = get_dynamic_font(user_image, text, max_width, max_height, font_path)
         font = ImageFont.truetype(font_path, int(font.size * size_multiplier))
-        
+
         draw = ImageDraw.Draw(user_image)
         text_width, text_height = draw.textsize(text, font=font)
-        
+
         # Apply position adjustments
         x = text_position[0]
         y = text_position[1]
@@ -74,7 +74,7 @@ async def add_text_to_image(photo_path, text, output_path, font_path, text_posit
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
             output_path = temp_file.name
             user_image.save(output_path, "PNG")
-        
+
         return output_path
     except Exception as e:
         logger.error(f"Error adding text to image: {e}")
@@ -102,20 +102,10 @@ app = Client(
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     welcome_text = (
-    "**╭────── ˹ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ˼ ──────⏤͟͟͞͞★**\n"
-            "**┆● ʜᴇʏ ɪ ᴀᴍ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ**\n"
-            "**┆● ᴡɪᴛʜ ᴘᴏᴡᴇʀғᴜʟ ғᴇᴀᴛᴜʀᴇs**\n"
-            "**┆● ᴀᴅᴅᴇᴅ ᴍᴀɴʏ sᴛʏʟᴇ ғᴏɴᴛ**\n"
-            "**╰─────────────────────────**\n"
-            "**──────────────────────────**\n"
-            "**❖ ɪ ᴀᴍ ᴀ ᴠᴇʀʏ ᴘᴏᴡᴇʀғᴜʟʟ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ**\n"
-            "**sᴇɴᴅ ᴀɴʏ ᴘɪᴄ ᴡʜɪᴄʜ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴜsᴇ ᴀs ᴀ ʙᴀᴄᴋɢʀᴏᴜɴᴅ**\n"
-            "**ɪ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ ᴛᴇxᴛ ᴛᴏ ɪᴛ**\n"
-            "**──────────────────────────**\n"
-            "**❖ sᴇɴᴅ » ᴀɴʏ ᴘʜᴏᴛᴏ ғᴏʀ ᴄʀᴇᴀᴛᴇ ʟᴏɢ**\n"
-            "**──────────────────────────**"
+    "╭────────〔༻༺〕────────╮\n‎ ‎  ‌‎   ‌‎Wᴇʟᴄᴏᴍᴇ ᴛᴏ Loɢᴏ Cʀᴇᴀᴛᴏʀ Bᴏᴛ!\n   ━━━━━━━━━༻❁༺━━━━━━━━━\n"
+    "‌‌‌‌       ‎Yᴏᴜ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ\n‌‌               ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ \n‌‌‌‎                         ᴛᴇxᴛ ᴛᴏ ɪᴛ!\n╰────────〔༻༺〕────────╯"
 )
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("▪️sᴛʀᴀɴɢᴇʀ-ᴀssᴏᴄɪᴀᴛɪᴏɴ▪️", url="https://t.me/StrangerAssociation")]])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("␥ ˹ ʙᴀʙʏ-ᴍᴜsɪᴄ ™˼𓅂 ␥", url="https://t.me/BABY09_WORLD")]])
     await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
 
 @app.on_message(filters.photo & filters.private)
@@ -142,20 +132,20 @@ async def text_handler(_, message: Message) -> None:
     if not user_data:
         await message.reply_text("❖ ғɪʀsᴛ sᴇɴᴅ ᴍᴇ ᴀ ᴘʜᴏᴛᴏ ғᴏʀ ʟᴏɢᴏ ʙᴀᴄᴋɢʀᴏɴᴜɴᴅ.")
         return
-    
+
     if user_data['text']:
         await message.reply_text("❖ ʏᴏᴜ ʜᴀᴠᴇ ᴀʟʀᴇᴀᴅʏ ᴇɴᴛᴇʀᴇᴅ ᴛᴇxᴛ!")
         return
-    
+
     user_text = message.text.strip()
     if not user_text:
         await message.reply_text("❖ ᴘʟᴇᴀsᴇ ᴇɴᴛᴇʀ ᴛᴇxᴛ.")
         return
-    
+
     user_data['text'] = user_text
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
     text_color = ImageColor.getrgb(user_data['text_color'])
-    
+
     # Apply blur if needed
     output_path = user_data['photo_path']
     if user_data['blur_intensity'] > 0:
@@ -229,7 +219,7 @@ async def callback_handler(_, callback_query: CallbackQuery):
     # Regenerate the logo with the new adjustments
     font_path = user_data.get("font", "fonts/Deadly Advance.ttf")
     text_color = ImageColor.getrgb(user_data['text_color'])
-    
+
     output_path = user_data['photo_path']
     if user_data['blur_intensity'] > 0:
         blurred_image_path = await apply_blur(user_data['photo_path'], user_data['blur_intensity'])
