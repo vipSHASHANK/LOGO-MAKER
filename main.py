@@ -102,10 +102,21 @@ app = Client(
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
     welcome_text = (
-    "╭────────〔༻༺〕────────╮\n‎ ‎  ‌‎   ‌‎Wᴇʟᴄᴏᴍᴇ ᴛᴏ Loɢᴏ Cʀᴇᴀᴛᴏʀ Bᴏᴛ!\n   ━━━━━━━━━༻❁༺━━━━━━━━━\n"
-    "‌‌‌‌       ‎Yᴏᴜ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ\n‌‌               ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ \n‌‌‌‎                         ᴛᴇxᴛ ᴛᴏ ɪᴛ!\n╰────────〔༻༺〕────────╯"
+    "**╭────── ˹ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ˼ ──────⏤͟͟͞͞★**\n"
+            "**┆● ʜᴇʏ ɪ ᴀᴍ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ**\n"
+            "**┆● ᴡɪᴛʜ ᴘᴏᴡᴇʀғᴜʟ ғᴇᴀᴛᴜʀᴇs**\n"
+            "**
+            "**┆● ᴀᴅᴅᴇᴅ ᴍᴀɴʏ sᴛʏʟᴇ ғᴏɴᴛ**\n"
+            "**╰─────────────────────────**\n"
+            "**──────────────────────────**\n"
+            "**❖ ɪ ᴀᴍ ᴀ ᴠᴇʀʏ ᴘᴏᴡᴇʀғᴜʟʟ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ**\n"
+            "**sᴇɴᴅ ᴀɴʏ ᴘɪᴄ ᴡʜɪᴄʜ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴜsᴇ ᴀs ᴀ ʙᴀᴄᴋɢʀᴏᴜɴᴅ**\n"
+            "**ɪ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ ᴛᴇxᴛ ᴛᴏ ɪᴛ**\n"
+            "**──────────────────────────**\n"
+            "**❖ sᴇɴᴅ » ᴀɴʏ ᴘʜᴏᴛᴏ ғᴏʀ ᴄʀᴇᴀᴛᴇ ʟᴏɢ**\n"
+            "**──────────────────────────**"
 )
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("sᴛʀᴀɴɢᴇʀ ᴀssᴏᴄɪᴀᴛɪᴏɴ", url="https://t.me/StrangerAssociation")]])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("▪️sᴛʀᴀɴɢᴇʀ-ᴀssᴏᴄɪᴀᴛɪᴏɴ▪️", url="https://t.me/StrangerAssociation")]])
     await message.reply_text(welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
 
 @app.on_message(filters.photo & filters.private)
