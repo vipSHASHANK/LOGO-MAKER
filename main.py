@@ -115,7 +115,7 @@ async def start_command(_, message: Message) -> None:
             "**❖ sᴇɴᴅ » ᴀɴʏ ᴘʜᴏᴛᴏ ғᴏʀ ᴄʀᴇᴀᴛᴇ ʟᴏɢᴏ**\n"
             "**──────────────────────────**"
 )
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("▪️sᴛʀᴀɴɢᴇʀ-ᴀssᴏᴄɪᴀᴛɪᴏɴ▪️", url="https://t.me/BABY09_WORLD")]])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("▪️sᴛʀᴀɴɢᴇʀ-ᴀssᴏᴄɪᴀᴛɪᴏɴ▪️", url="https://t.me/StrangerAssociation")]])
     await message.reply_photo(
 photo="https://files.catbox.moe/apx9z5.jpg",
 welcome_text, reply_markup=keyboard, disable_web_page_preview=True)
