@@ -101,30 +101,33 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_command(_, message: Message) -> None:
-    welcome_text = (
-        "╭────── ˹ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ˼ ──────⏤‌‌‌‌★\n"
-        "┆● ʜᴇʏ ɪ ᴀᴍ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ\n"
-        "┆● ᴡɪᴛʜ ᴘᴏᴡᴇʀғᴜʟ ғᴇᴀᴛᴜʀᴇs\n"
-        "┆● ᴀᴅᴅᴇᴅ ᴍᴀɴʏ sᴛʏʟɪsʜ ғᴏɴᴛ\n"
-        "╰─────────────────────────\n"
-        "──────────────────────────\n"
-        "❖ ɪ ᴀᴍ ᴀ ᴠᴇʀʏ ᴘᴏᴡᴇʀғᴜʟʟ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ\n"
-        "sᴇɴᴅ ᴀɴʏ ᴘɪᴄ ᴡʜɪᴄʜ ʏᴏᴜ ᴡᴀɴᴛ ᴀs ᴀ ʙᴀᴄᴋɢʀᴏᴜɴᴅ\n"
-        "ɪ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ ᴛᴇxᴛ ᴛᴏ ɪᴛ\n"
-        "──────────────────────────\n"
-        "❖ sᴇɴᴅ » ᴀɴʏ ᴘʜᴏᴛᴏ ғᴏʀ ᴄʀᴇᴀᴛᴇ ʟᴏɢᴏ\n"
-        "──────────────────────────"
-    )
-    SHUKLA = "https://files.catbox.moe/apx9z5.jpg"
-    keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("▪️ᴜᴘᴅᴀᴛᴇs▪️", url="https://t.me/SHIVANSH474")]]
-    )
-    await message.reply_photo(
-        SHUKLA,
-        caption=welcome_text,
-        reply_markup=keyboard,
-        disable_web_page_preview=True
-    )
+    try:
+        welcome_text = (
+            "╭────── ˹ ɪɴғᴏʀᴍᴀᴛɪᴏɴ ˼ ──────⏤‌‌‌‌★\n"
+            "┆● ʜᴇʏ ɪ ᴀᴍ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ\n"
+            "┆● ᴡɪᴛʜ ᴘᴏᴡᴇʀғᴜʟ ғᴇᴀᴛᴜʀᴇs\n"
+            "┆● ᴀᴅᴅᴇᴅ ᴍᴀɴʏ sᴛʏʟɪsʜ ғᴏɴᴛ\n"
+            "╰─────────────────────────\n"
+            "──────────────────────────\n"
+            "❖ ɪ ᴀᴍ ᴀ ᴠᴇʀʏ ᴘᴏᴡᴇʀғᴜʟʟ ʟᴏɢᴏ ᴍᴀᴋᴇʀ-ʙᴏᴛ\n"
+            "sᴇɴᴅ ᴀɴʏ ᴘɪᴄ ᴡʜɪᴄʜ ʏᴏᴜ ᴡᴀɴᴛ ᴀs ᴀ ʙᴀᴄᴋɢʀᴏᴜɴᴅ\n"
+            "ɪ ᴄᴀɴ ᴄʀᴇᴀᴛᴇ ᴀ ᴄᴏsᴛᴏᴍ ʟᴏɢᴏ ᴏɴ ʏᴏᴜʀ ᴘʜᴏᴛᴏ ᴀᴅᴅɪɴɢ ᴛᴇxᴛ ᴛᴏ ɪᴛ\n"
+            "──────────────────────────\n"
+            "❖ sᴇɴᴅ » ᴀɴʏ ᴘʜᴏᴛᴏ ғᴏʀ ᴄʀᴇᴀᴛᴇ ʟᴏɢᴏ\n"
+            "──────────────────────────"
+        )
+        SHUKLA = "https://files.catbox.moe/apx9z5.jpg"
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("▪️ᴜᴘᴅᴀᴛᴇs▪️", url="https://t.me/SHIVANSH474")]]
+        )
+        await message.reply_photo(
+            SHUKLA,
+            caption=welcome_text,
+            reply_markup=keyboard,
+            disable_web_page_preview=True
+        )
+    except Exception as e:
+        print(f"Error in start_command: {e}")
 
 @app.on_message(filters.photo & filters.private)
 async def photo_handler(_, message: Message) -> None:
