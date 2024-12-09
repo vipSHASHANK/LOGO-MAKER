@@ -123,8 +123,7 @@ async def start_command(_, message: Message) -> None:
         await message.reply_photo(
             SHUKLA,
             caption=welcome_text,
-            reply_markup=keyboard,
-            disable_web_page_preview=True
+            reply_markup=keyboard
         )
     except Exception as e:
         print(f"Error in start_command: {e}")
